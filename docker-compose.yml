@@ -1,0 +1,80 @@
+services:
+  frontend:
+    build:
+      context: ./services/frontend
+    command: npm run dev
+    ports:
+      - "5173:5173"
+    depends_on:
+      backend:
+        condition: service_started
+    volumes:
+      - ./services/frontend:/app
+      - /app/node_modules
+
+  backend:
+    build:
+      context: ./services/backend
+    command: npm run dev
+    env_file:
+      - .env
+    ports:
+      - "3000:3000"
+    depends_on:
+      redis:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+      ai-service:
+        condition: service_started
+    volumes:
+      - ./services/backend:/app
+      - /app/node_modules
+      - ./storage:/app/storage
+
+  worker:
+    build:
+      context: ./services/backend
+    command: sh -c "npm run build && npm run worker:start"
+    env_file:
+      - .env
+    depends_on:
+      redis:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+      ai-service:
+        condition: service_started
+    volumes:
+      - ./services/backend:/app
+      - /app/node_modules
+      - ./storage:/app/storage
+
+  ai-service:
+    build:
+      context: ./services/ai-service
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./services/ai-service:/app
+
+  redis:
+    image: redis:7-alpine
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ai_video_generator
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ai_video_generator"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+volumes:
+  postgres_data:

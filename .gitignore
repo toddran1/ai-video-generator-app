@@ -1,0 +1,12 @@
+node_modules
+dist
+.venv
+__pycache__
+.pytest_cache
+.DS_Store
+.env
+storage/temp/*
+storage/outputs/*
+!storage/temp/.gitkeep
+!storage/outputs/.gitkeep
+!storage/projects/.gitkeep
