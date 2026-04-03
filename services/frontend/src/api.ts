@@ -1,4 +1,4 @@
-import type { ApiResponse, GenerationJobStatus, Project, ProjectGenerationStatus } from "./types";
+import type { ApiResponse, GenerationJobStatus, Project, ProjectGenerationStatus, ProjectShotPlanItem } from "./types";
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`/api${path}`, {
@@ -25,6 +25,41 @@ export async function createProject(input: { title: string; prompt: string }) {
   return request<ApiResponse<Project>>("/projects", {
     method: "POST",
     body: JSON.stringify(input)
+  });
+}
+
+export async function getProjectShotPlan(projectId: string) {
+  return request<ApiResponse<Array<{
+    id: string;
+    project_id: string;
+    shot_number: number;
+    description: string;
+    duration_seconds: number;
+    negative_prompt: string | null;
+    camera_notes: string | null;
+    created_at: string;
+    updated_at: string;
+  }>>>(`/projects/${projectId}/shot-plan`);
+}
+
+export async function getProjectAutoShotPlan(projectId: string) {
+  return request<ApiResponse<ProjectShotPlanItem[]>>(`/projects/${projectId}/auto-shot-plan`);
+}
+
+export async function updateProjectShotPlan(projectId: string, shots: ProjectShotPlanItem[]) {
+  return request<ApiResponse<Array<{
+    id: string;
+    project_id: string;
+    shot_number: number;
+    description: string;
+    duration_seconds: number;
+    negative_prompt: string | null;
+    camera_notes: string | null;
+    created_at: string;
+    updated_at: string;
+  }>>>(`/projects/${projectId}/shot-plan`, {
+    method: "PUT",
+    body: JSON.stringify({ shots })
   });
 }
 

@@ -118,6 +118,31 @@ export async function bootstrapDatabase(): Promise<void> {
         ADD COLUMN IF NOT EXISTS provider_terminal_payload TEXT
       `);
 
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS project_shot_plans (
+          id UUID PRIMARY KEY,
+          project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+          shot_number INTEGER NOT NULL,
+          description TEXT NOT NULL,
+          duration_seconds INTEGER NOT NULL,
+          negative_prompt TEXT,
+          camera_notes TEXT,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          UNIQUE (project_id, shot_number)
+        )
+      `);
+
+      await pool.query(`
+        ALTER TABLE project_shot_plans
+        ADD COLUMN IF NOT EXISTS negative_prompt TEXT
+      `);
+
+      await pool.query(`
+        ALTER TABLE project_shot_plans
+        ADD COLUMN IF NOT EXISTS camera_notes TEXT
+      `);
+
       return;
     } catch (error) {
       if (attempt === maxAttempts) {

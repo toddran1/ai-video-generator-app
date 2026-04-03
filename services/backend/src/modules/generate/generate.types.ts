@@ -2,6 +2,20 @@ export interface ShotPlanItem {
   shotNumber: number;
   description: string;
   durationSeconds: number;
+  negativePrompt?: string | null;
+  cameraNotes?: string | null;
+}
+
+export interface ProjectShotPlanRecord {
+  id: string;
+  project_id: string;
+  shot_number: number;
+  description: string;
+  duration_seconds: number;
+  negative_prompt: string | null;
+  camera_notes: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface GenerationJobRecord {

@@ -1,4 +1,6 @@
 import { pool } from "../../db/pool.js";
+import { v4 as uuidv4 } from "uuid";
+import type { ProjectShotPlanRecord, ShotPlanItem } from "../generate/generate.types.js";
 
 export interface ProjectRecord {
   id: string;
@@ -70,4 +72,55 @@ export async function resetProjectForRetry(id: string): Promise<void> {
     `,
     [id]
   );
+}
+
+export async function listProjectShotPlans(projectId: string): Promise<ProjectShotPlanRecord[]> {
+  const result = await pool.query<ProjectShotPlanRecord>(
+    `
+      SELECT *
+      FROM project_shot_plans
+      WHERE project_id = $1
+      ORDER BY shot_number ASC
+    `,
+    [projectId]
+  );
+
+  return result.rows;
+}
+
+export async function replaceProjectShotPlans(projectId: string, shots: ShotPlanItem[]): Promise<ProjectShotPlanRecord[]> {
+  await pool.query("DELETE FROM project_shot_plans WHERE project_id = $1", [projectId]);
+
+  const inserted: ProjectShotPlanRecord[] = [];
+
+  for (const shot of shots) {
+    const result = await pool.query<ProjectShotPlanRecord>(
+      `
+        INSERT INTO project_shot_plans (
+          id,
+          project_id,
+          shot_number,
+          description,
+          duration_seconds,
+          negative_prompt,
+          camera_notes
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        RETURNING *
+      `,
+      [
+        uuidv4(),
+        projectId,
+        shot.shotNumber,
+        shot.description,
+        shot.durationSeconds,
+        shot.negativePrompt ?? null,
+        shot.cameraNotes ?? null
+      ]
+    );
+
+    inserted.push(result.rows[0]);
+  }
+
+  return inserted;
 }

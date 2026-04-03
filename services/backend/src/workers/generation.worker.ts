@@ -63,7 +63,7 @@ async function processGenerationJob(payload: GenerationJobPayload): Promise<void
     (jobRecord.generation_profile as "testing" | "production" | undefined) ?? "testing"
   );
 
-  const shotPlan = await planShots(project.prompt);
+  const shotPlan = await planShots(project.prompt, payload.projectId);
   const shots = shotPlan.shots;
   await localAssetService.ensureProjectDirectories(payload.projectId);
   const persistedShots = await createGenerationShots({

@@ -8,6 +8,14 @@ export interface Project {
   updated_at: string;
 }
 
+export interface ProjectShotPlanItem {
+  shotNumber: number;
+  description: string;
+  durationSeconds: number;
+  negativePrompt?: string | null;
+  cameraNotes?: string | null;
+}
+
 export interface ApiResponse<T> {
   data: T;
 }

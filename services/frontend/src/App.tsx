@@ -4,12 +4,22 @@ import {
   createProject,
   generateProject,
   getGenerationJob,
+  getProjectAutoShotPlan,
+  getProjectShotPlan,
   getProjectGenerationStatus,
   listProjects,
   retryGenerationJob,
-  retryGenerationShot
+  retryGenerationShot,
+  updateProjectShotPlan
 } from "./api";
-import type { GenerationJob, GenerationJobStatus, GenerationShot, Project, ProjectGenerationStatus } from "./types";
+import type {
+  GenerationJob,
+  GenerationJobStatus,
+  GenerationShot,
+  Project,
+  ProjectGenerationStatus,
+  ProjectShotPlanItem
+} from "./types";
 
 interface ProjectFormState {
   title: string;
@@ -22,6 +32,12 @@ const initialFormState: ProjectFormState = {
   title: "",
   prompt: ""
 };
+
+const defaultShotPlan: ProjectShotPlanItem[] = [
+  { shotNumber: 1, description: "Establishing shot", durationSeconds: 3, negativePrompt: "", cameraNotes: "" },
+  { shotNumber: 2, description: "Main action beat", durationSeconds: 3, negativePrompt: "", cameraNotes: "" },
+  { shotNumber: 3, description: "Closing shot", durationSeconds: 3, negativePrompt: "", cameraNotes: "" }
+];
 
 const terminalStatuses = new Set(["completed", "failed"]);
 
@@ -47,6 +63,11 @@ function getShotProgress(shots: GenerationShot[]) {
 
   const completedShots = shots.filter((shot) => shot.status === "completed").length;
   return `${completedShots}/${shots.length} shots complete`;
+}
+
+function getShotPlanSummary(shots: ProjectShotPlanItem[]) {
+  const totalDuration = shots.reduce((sum, shot) => sum + shot.durationSeconds, 0);
+  return `${shots.length} shots · ${totalDuration}s total`;
 }
 
 function getLatestJob(projectStatus?: ProjectGenerationStatus) {
@@ -97,6 +118,9 @@ export default function App() {
   const [jobDiagnostics, setJobDiagnostics] = useState<Record<string, GenerationJobStatus>>({});
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
+  const [editableShotPlan, setEditableShotPlan] = useState<ProjectShotPlanItem[]>(defaultShotPlan);
+  const [savedShotPlan, setSavedShotPlan] = useState<ProjectShotPlanItem[]>([]);
+  const [autoShotPlanPreview, setAutoShotPlanPreview] = useState<ProjectShotPlanItem[]>([]);
   const [formState, setFormState] = useState<ProjectFormState>(initialFormState);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
@@ -104,6 +128,8 @@ export default function App() {
   const [activeRetryJobId, setActiveRetryJobId] = useState<string | null>(null);
   const [activeShotAction, setActiveShotAction] = useState<string | null>(null);
   const [generationProfile, setGenerationProfile] = useState<GenerationProfile>("testing");
+  const [isSavingShotPlan, setIsSavingShotPlan] = useState(false);
+  const [pendingGenerateProjectId, setPendingGenerateProjectId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function refreshProjectStatus(projectId: string) {
@@ -122,6 +148,27 @@ export default function App() {
       ...current,
       [jobId]: response.data
     }));
+  }
+
+  async function refreshProjectShotPlan(projectId: string) {
+    const response = await getProjectShotPlan(projectId);
+    const shots = response.data
+      .map((shot) => ({
+        shotNumber: shot.shot_number,
+        description: shot.description,
+        durationSeconds: shot.duration_seconds,
+        negativePrompt: shot.negative_prompt,
+        cameraNotes: shot.camera_notes
+      }))
+      .sort((a, b) => a.shotNumber - b.shotNumber);
+
+    setSavedShotPlan(shots);
+    setEditableShotPlan(shots.length > 0 ? shots : defaultShotPlan);
+  }
+
+  async function refreshAutoShotPlan(projectId: string) {
+    const response = await getProjectAutoShotPlan(projectId);
+    setAutoShotPlanPreview(response.data);
   }
 
   async function refreshDashboardData() {
@@ -187,6 +234,19 @@ export default function App() {
   }, [projectStatuses, selectedProjectId, selectedJobId]);
 
   useEffect(() => {
+    if (!selectedProjectId) {
+      return;
+    }
+
+    void refreshProjectShotPlan(selectedProjectId).catch((shotPlanError) => {
+      setError(shotPlanError instanceof Error ? shotPlanError.message : "Unable to load shot plan");
+    });
+    void refreshAutoShotPlan(selectedProjectId).catch((shotPlanError) => {
+      setError(shotPlanError instanceof Error ? shotPlanError.message : "Unable to load auto shot plan");
+    });
+  }, [selectedProjectId]);
+
+  useEffect(() => {
     if (!selectedJobId) {
       return;
     }
@@ -248,7 +308,7 @@ export default function App() {
     }
   }
 
-  async function handleGenerate(projectId: string) {
+  async function startGeneration(projectId: string) {
     setActiveProjectId(projectId);
     setError(null);
 
@@ -260,6 +320,17 @@ export default function App() {
     } finally {
       setActiveProjectId(null);
     }
+  }
+
+  async function handleGenerate(projectId: string) {
+    const hasManualPlan = selectedProjectId === projectId ? savedShotPlan.length > 0 : false;
+
+    if (hasManualPlan) {
+      setPendingGenerateProjectId(projectId);
+      return;
+    }
+
+    await startGeneration(projectId);
   }
 
   async function handleRetryJob(jobId: string) {
@@ -309,6 +380,32 @@ export default function App() {
     }
   }
 
+  async function handleSaveShotPlan() {
+    if (!selectedProjectId) {
+      return;
+    }
+
+    setIsSavingShotPlan(true);
+    setError(null);
+
+    try {
+      const normalized = editableShotPlan.map((shot, index) => ({
+        shotNumber: index + 1,
+        description: shot.description,
+        durationSeconds: shot.durationSeconds,
+        negativePrompt: shot.negativePrompt ?? "",
+        cameraNotes: shot.cameraNotes ?? ""
+      }));
+      await updateProjectShotPlan(selectedProjectId, normalized);
+      await refreshProjectShotPlan(selectedProjectId);
+      await refreshAutoShotPlan(selectedProjectId);
+    } catch (shotPlanError) {
+      setError(shotPlanError instanceof Error ? shotPlanError.message : "Unable to save shot plan");
+    } finally {
+      setIsSavingShotPlan(false);
+    }
+  }
+
   const stats = getProjectStats(projects);
   const selectedProject = projects.find((project) => project.id === selectedProjectId) ?? projects[0] ?? null;
   const selectedStatus = selectedProject ? projectStatuses[selectedProject.id] : undefined;
@@ -318,6 +415,7 @@ export default function App() {
   const diagnosticShots = diagnosticJob?.shots ?? [];
   const projectJobs = selectedStatus?.jobs ?? [];
   const diagnosticJobId = diagnosticJob?.job.id ?? null;
+  const usingManualShotPlan = savedShotPlan.length > 0;
 
   return (
     <div className="page-shell">
@@ -586,7 +684,7 @@ export default function App() {
                   </div>
                   <div className="detail-stat-card">
                     <span className="metric-label">Current Planner</span>
-                    <strong>{featuredJob ? formatProvider(featuredJob.planner_provider) : "Waiting"}</strong>
+                    <strong>{featuredJob ? formatProvider(featuredJob.planner_provider) : usingManualShotPlan ? "project shot plan" : "Waiting"}</strong>
                   </div>
                   <div className="detail-stat-card">
                     <span className="metric-label">Latest Job ID</span>
@@ -597,6 +695,178 @@ export default function App() {
                 <div className="detail-section">
                   <p className="eyebrow">Prompt</p>
                   <p className="detail-copy">{selectedProject.prompt}</p>
+                  <div className="detail-row">
+                    <span className="metric-label">Planning Source</span>
+                    <span>{usingManualShotPlan ? "Manual shot plan" : "Automatic planner"}</span>
+                  </div>
+                  <div className="detail-row">
+                    <span className="metric-label">Manual Plan Summary</span>
+                    <span>{usingManualShotPlan ? getShotPlanSummary(savedShotPlan) : "No saved manual plan"}</span>
+                  </div>
+                </div>
+
+                <div className="detail-section">
+                  <div className="section-head">
+                    <div>
+                      <p className="eyebrow">Shot Plan Editor</p>
+                      <h3>Override automatic planning for this project</h3>
+                    </div>
+                    <button
+                      className="primary-button"
+                      disabled={isSavingShotPlan}
+                      onClick={() => void handleSaveShotPlan()}
+                      type="button"
+                    >
+                      {isSavingShotPlan ? "Saving..." : "Save Shot Plan"}
+                    </button>
+                  </div>
+
+                  <div className="shot-plan-editor">
+                    {editableShotPlan.map((shot, index) => (
+                      <div className="shot-plan-editor-row" key={`shot-plan-${index}`}>
+                        <div className="shot-plan-editor-head">
+                          <span className="shot-index">Shot {index + 1}</span>
+                          <button
+                            className="ghost-button"
+                            disabled={editableShotPlan.length <= 1}
+                            onClick={() =>
+                              setEditableShotPlan((current) =>
+                                current
+                                  .filter((_, currentIndex) => currentIndex !== index)
+                                  .map((item, nextIndex) => ({ ...item, shotNumber: nextIndex + 1 }))
+                              )
+                            }
+                            type="button"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                        <textarea
+                          className="shot-plan-input"
+                          onChange={(event) =>
+                            setEditableShotPlan((current) =>
+                              current.map((item, currentIndex) =>
+                                currentIndex === index ? { ...item, description: event.target.value } : item
+                              )
+                            )
+                          }
+                          rows={3}
+                          value={shot.description}
+                        />
+                        <textarea
+                          className="shot-plan-input"
+                          onChange={(event) =>
+                            setEditableShotPlan((current) =>
+                              current.map((item, currentIndex) =>
+                                currentIndex === index ? { ...item, cameraNotes: event.target.value } : item
+                              )
+                            )
+                          }
+                          placeholder="Camera notes: dolly in, handheld, low angle..."
+                          rows={2}
+                          value={shot.cameraNotes ?? ""}
+                        />
+                        <textarea
+                          className="shot-plan-input"
+                          onChange={(event) =>
+                            setEditableShotPlan((current) =>
+                              current.map((item, currentIndex) =>
+                                currentIndex === index ? { ...item, negativePrompt: event.target.value } : item
+                              )
+                            )
+                          }
+                          placeholder="Negative prompt: blurry, text, watermark..."
+                          rows={2}
+                          value={shot.negativePrompt ?? ""}
+                        />
+                        <label className="shot-plan-duration">
+                          <span className="metric-label">Duration Seconds</span>
+                          <input
+                            min={1}
+                            max={30}
+                            onChange={(event) =>
+                              setEditableShotPlan((current) =>
+                                current.map((item, currentIndex) =>
+                                  currentIndex === index
+                                    ? { ...item, durationSeconds: Number(event.target.value) || 1 }
+                                    : item
+                                )
+                              )
+                            }
+                            type="number"
+                            value={shot.durationSeconds}
+                          />
+                        </label>
+                      </div>
+                    ))}
+                    <button
+                      className="secondary-button"
+                      onClick={() =>
+                        setEditableShotPlan((current) => [
+                          ...current,
+                          {
+                            shotNumber: current.length + 1,
+                            description: `New shot ${current.length + 1}`,
+                            durationSeconds: 3,
+                            negativePrompt: "",
+                            cameraNotes: ""
+                          }
+                        ])
+                      }
+                      type="button"
+                    >
+                      Add Shot
+                    </button>
+                  </div>
+                </div>
+
+                <div className="detail-section">
+                  <div className="section-head">
+                    <div>
+                      <p className="eyebrow">Plan Compare</p>
+                      <h3>Manual plan vs automatic planner preview</h3>
+                    </div>
+                  </div>
+
+                  <div className="plan-compare-grid">
+                    <div className="compare-card">
+                      <p className="eyebrow">Saved Manual Plan</p>
+                      <h4>{usingManualShotPlan ? getShotPlanSummary(savedShotPlan) : "Not saved yet"}</h4>
+                      {usingManualShotPlan ? (
+                        <div className="compare-shot-list">
+                          {savedShotPlan.map((shot) => (
+                            <div className="compare-shot-row" key={`manual-${shot.shotNumber}`}>
+                              <strong>Shot {shot.shotNumber}</strong>
+                              <span>{shot.description}</span>
+                              {shot.cameraNotes ? <span className="timestamp">Camera: {shot.cameraNotes}</span> : null}
+                              {shot.negativePrompt ? (
+                                <span className="timestamp">Negative: {shot.negativePrompt}</span>
+                              ) : null}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="empty-state">Save a manual shot plan to compare it against the automatic planner.</div>
+                      )}
+                    </div>
+
+                    <div className="compare-card">
+                      <p className="eyebrow">Automatic Planner Preview</p>
+                      <h4>{autoShotPlanPreview.length > 0 ? getShotPlanSummary(autoShotPlanPreview) : "Loading..."}</h4>
+                      {autoShotPlanPreview.length > 0 ? (
+                        <div className="compare-shot-list">
+                          {autoShotPlanPreview.map((shot) => (
+                            <div className="compare-shot-row" key={`auto-${shot.shotNumber}`}>
+                              <strong>Shot {shot.shotNumber}</strong>
+                              <span>{shot.description}</span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="empty-state">Automatic planner preview is not available yet.</div>
+                      )}
+                    </div>
+                  </div>
                 </div>
 
                 <div className="detail-section">
@@ -859,6 +1129,39 @@ export default function App() {
           </section>
         </section>
       </main>
+      {pendingGenerateProjectId ? (
+        <div className="modal-backdrop">
+          <div className="modal-card">
+            <p className="eyebrow">Confirm Generation</p>
+            <h3>Generate from saved manual shot plan?</h3>
+            <p className="detail-copy">
+              This project has a saved shot plan. Starting generation will use those manual shots instead of the automatic planner and will spend provider credits.
+            </p>
+            <div className="modal-actions">
+              <button
+                className="secondary-button"
+                onClick={() => setPendingGenerateProjectId(null)}
+                type="button"
+              >
+                Cancel
+              </button>
+              <button
+                className="primary-button"
+                onClick={() => {
+                  const projectId = pendingGenerateProjectId;
+                  setPendingGenerateProjectId(null);
+                  if (projectId) {
+                    void startGeneration(projectId);
+                  }
+                }}
+                type="button"
+              >
+                Generate With Manual Plan
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
