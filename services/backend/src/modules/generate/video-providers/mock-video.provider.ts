@@ -12,6 +12,12 @@ export async function generateMockVideoClip(
 
   return {
     provider: "mock",
+    providerRequestPayload: JSON.stringify({
+      prompt: input.prompt,
+      duration: input.durationSeconds ?? 3,
+      aspect_ratio: input.aspectRatio ?? null,
+      negative_prompt: input.negativePrompt ?? null
+    }),
     outputPath: input.outputPath
   };
 }

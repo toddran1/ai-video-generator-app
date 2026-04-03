@@ -239,6 +239,15 @@ export async function generateKlingVideoClip(
 ): Promise<GenerateVideoClipResult> {
   const existingTaskId = input.providerTaskId?.trim();
   if (existingTaskId) {
+    console.log(
+      `[kling] resuming task=${existingTaskId} request=${stringifyPayload({
+        model: input.model ?? env.KLING_MODEL,
+        prompt: input.prompt,
+        duration: input.durationSeconds ?? env.KLING_DURATION_SECONDS,
+        aspect_ratio: input.aspectRatio ?? env.KLING_ASPECT_RATIO,
+        negative_prompt: input.negativePrompt ?? env.KLING_NEGATIVE_PROMPT ?? undefined
+      })}`
+    );
     await ensureNotCanceled(input);
     const taskResult = await pollKlingTask(existingTaskId, input);
 
@@ -256,6 +265,13 @@ export async function generateKlingVideoClip(
       provider: "kling",
       providerTaskId: existingTaskId,
       providerRequestId: taskResult.providerRequestId,
+      providerRequestPayload: stringifyPayload({
+        model: input.model ?? env.KLING_MODEL,
+        prompt: input.prompt,
+        duration: input.durationSeconds ?? env.KLING_DURATION_SECONDS,
+        aspect_ratio: input.aspectRatio ?? env.KLING_ASPECT_RATIO,
+        negative_prompt: input.negativePrompt ?? env.KLING_NEGATIVE_PROMPT ?? undefined
+      }),
       providerUnitsConsumed: taskResult.providerUnitsConsumed,
       providerTerminalPayload: taskResult.providerTerminalPayload,
       outputPath: input.outputPath
@@ -267,10 +283,11 @@ export async function generateKlingVideoClip(
     model: input.model ?? env.KLING_MODEL,
     prompt: input.prompt,
     duration: input.durationSeconds ?? env.KLING_DURATION_SECONDS,
-    aspect_ratio: env.KLING_ASPECT_RATIO,
-    negative_prompt: env.KLING_NEGATIVE_PROMPT || undefined,
+    aspect_ratio: input.aspectRatio ?? env.KLING_ASPECT_RATIO,
+    negative_prompt: input.negativePrompt ?? env.KLING_NEGATIVE_PROMPT ?? undefined,
     ...(env.KLING_MODE ? { mode: env.KLING_MODE } : {})
   };
+  const requestPayload = stringifyPayload(requestBody);
 
   let response;
   try {
@@ -293,6 +310,7 @@ export async function generateKlingVideoClip(
     throw error;
   }
 
+  console.log(`[kling] submit request payload=${requestPayload}`);
   console.log(`[kling] submit response payload=${stringifyPayload(response.data)}`);
 
   const apiError = getKlingErrorMessage(response.data);
@@ -308,7 +326,8 @@ export async function generateKlingVideoClip(
 
   await input.onProviderTaskCreated?.({
     providerTaskId: taskId,
-    providerRequestId: response.data.request_id ?? response.data.requestId
+    providerRequestId: response.data.request_id ?? response.data.requestId,
+    providerRequestPayload: requestPayload
   });
 
   const taskResult = await pollKlingTask(taskId, input);
@@ -327,6 +346,7 @@ export async function generateKlingVideoClip(
     provider: "kling",
     providerTaskId: taskId,
     providerRequestId: taskResult.providerRequestId,
+    providerRequestPayload: requestPayload,
     providerUnitsConsumed: taskResult.providerUnitsConsumed,
     providerTerminalPayload: taskResult.providerTerminalPayload,
     outputPath: input.outputPath

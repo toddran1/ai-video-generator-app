@@ -24,7 +24,8 @@ body {
 
 button,
 input,
-textarea {
+textarea,
+select {
   font: inherit;
 }
 
@@ -170,7 +171,11 @@ a {
 }
 
 .project-form input,
-.project-form textarea {
+.project-form textarea,
+.project-form select,
+.project-settings-grid input,
+.project-settings-grid select,
+.project-settings-stack input {
   width: 100%;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -187,6 +192,22 @@ a {
 .project-form textarea {
   resize: vertical;
   min-height: 140px;
+}
+
+.project-settings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.project-settings-grid label,
+.project-settings-stack {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.project-settings-stack {
+  margin-top: 1rem;
 }
 
 .profile-toggle-card {
@@ -378,6 +399,35 @@ a {
   border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
+.payload-block {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.payload-block summary {
+  list-style: none;
+  cursor: pointer;
+}
+
+.payload-block summary::-webkit-details-marker {
+  display: none;
+}
+
+.payload-block pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-x: auto;
+  max-height: 18rem;
+  padding: 0.85rem 0.95rem;
+  border-radius: 14px;
+  background: rgba(7, 10, 14, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  color: rgba(245, 239, 226, 0.88);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
 .shot-action-row {
   display: flex;
   flex-wrap: wrap;
@@ -400,11 +450,46 @@ a {
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
+.shot-plan-editor-row-dragging {
+  opacity: 0.6;
+  border-color: rgba(230, 140, 87, 0.45);
+}
+
 .shot-plan-editor-head {
   display: flex;
   justify-content: space-between;
   gap: 1rem;
   align-items: center;
+  flex-wrap: wrap;
+}
+
+.shot-index-group {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.drag-handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 3.25rem;
+  padding: 0.35rem 0.6rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px dashed rgba(255, 255, 255, 0.18);
+  color: rgba(245, 239, 226, 0.72);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: grab;
+}
+
+.section-actions,
+.editor-row-actions {
+  display: flex;
+  gap: 0.65rem;
+  flex-wrap: wrap;
 }
 
 .shot-plan-input,
@@ -424,6 +509,31 @@ a {
 .shot-plan-duration {
   display: grid;
   gap: 0.4rem;
+}
+
+.shot-plan-estimate-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-top: 0.2rem;
+  flex-wrap: wrap;
+}
+
+.estimate-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 1rem;
+  padding: 0.9rem 1rem;
+  border-radius: 16px;
+  background: rgba(230, 140, 87, 0.08);
+  border: 1px solid rgba(230, 140, 87, 0.22);
+}
+
+.estimate-banner strong {
+  font-size: 1.1rem;
+  letter-spacing: -0.03em;
 }
 
 .modal-backdrop {
@@ -626,10 +736,22 @@ a {
   text-decoration: underline;
 }
 
+.ghost-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  text-decoration: none;
+}
+
 .detail-view {
   display: grid;
   gap: 1rem;
   margin-top: 1.2rem;
+}
+
+.detail-tab-row {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
 }
 
 .detail-view-grid {
@@ -738,5 +860,15 @@ a {
 
   .detail-view-grid {
     grid-template-columns: 1fr;
+  }
+
+  .project-settings-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .estimate-banner,
+  .section-actions,
+  .editor-row-actions {
+    align-items: flex-start;
   }
 }

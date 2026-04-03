@@ -6,6 +6,12 @@ export interface ShotPlanItem {
   cameraNotes?: string | null;
 }
 
+export interface ProjectPlanningSettings {
+  targetShotCount?: number | null;
+  aspectRatio?: string | null;
+  styleHint?: string | null;
+}
+
 export interface ProjectShotPlanRecord {
   id: string;
   project_id: string;
@@ -47,6 +53,7 @@ export interface GenerationShotRecord {
   provider: string;
   provider_task_id: string | null;
   provider_request_id: string | null;
+  provider_request_payload: string | null;
   provider_units_consumed: string | null;
   provider_terminal_payload: string | null;
   asset_path: string | null;

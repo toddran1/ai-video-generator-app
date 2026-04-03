@@ -6,9 +6,14 @@ import {
   getProjectShotPlanOrThrow,
   listProjectRecords,
   previewAutoShotPlan,
+  updateProjectPlanningSettingsOrThrow,
   updateProjectShotPlan
 } from "./projects.service.js";
-import { createProjectSchema, updateProjectShotPlanSchema } from "./projects.schemas.js";
+import {
+  createProjectSchema,
+  updateProjectPlanningSettingsSchema,
+  updateProjectShotPlanSchema
+} from "./projects.schemas.js";
 
 export const projectsRouter = Router();
 
@@ -33,6 +38,15 @@ projectsRouter.get(
   "/:projectId",
   asyncHandler(async (req, res) => {
     const project = await getProjectOrThrow(String(req.params.projectId));
+    res.json({ data: project });
+  })
+);
+
+projectsRouter.put(
+  "/:projectId/settings",
+  asyncHandler(async (req, res) => {
+    const input = updateProjectPlanningSettingsSchema.parse(req.body);
+    const project = await updateProjectPlanningSettingsOrThrow(String(req.params.projectId), input);
     res.json({ data: project });
   })
 );

@@ -190,6 +190,7 @@ export async function updateGenerationShot(params: {
   status: string;
   providerTaskId?: string;
   providerRequestId?: string;
+  providerRequestPayload?: string;
   providerUnitsConsumed?: string;
   providerTerminalPayload?: string;
   assetPath?: string;
@@ -201,10 +202,11 @@ export async function updateGenerationShot(params: {
       SET status = $3,
           provider_task_id = COALESCE($4, provider_task_id),
           provider_request_id = COALESCE($5, provider_request_id),
-          provider_units_consumed = COALESCE($6, provider_units_consumed),
-          provider_terminal_payload = COALESCE($7, provider_terminal_payload),
-          asset_path = COALESCE($8, asset_path),
-          asset_url = COALESCE($9, asset_url),
+          provider_request_payload = COALESCE($6, provider_request_payload),
+          provider_units_consumed = COALESCE($7, provider_units_consumed),
+          provider_terminal_payload = COALESCE($8, provider_terminal_payload),
+          asset_path = COALESCE($9, asset_path),
+          asset_url = COALESCE($10, asset_url),
           updated_at = NOW()
       WHERE job_id = $1 AND shot_number = $2
     `,
@@ -214,6 +216,7 @@ export async function updateGenerationShot(params: {
       params.status,
       params.providerTaskId ?? null,
       params.providerRequestId ?? null,
+      params.providerRequestPayload ?? null,
       params.providerUnitsConsumed ?? null,
       params.providerTerminalPayload ?? null,
       params.assetPath ?? null,
@@ -256,6 +259,7 @@ export async function resetGenerationShotsForRetry(jobId: string, fromShotNumber
       SET status = 'planned',
           provider_task_id = NULL,
           provider_request_id = NULL,
+          provider_request_payload = NULL,
           provider_units_consumed = NULL,
           provider_terminal_payload = NULL,
           asset_path = NULL,

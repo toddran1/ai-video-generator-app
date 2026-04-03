@@ -63,7 +63,13 @@ async function processGenerationJob(payload: GenerationJobPayload): Promise<void
     (jobRecord.generation_profile as "testing" | "production" | undefined) ?? "testing"
   );
 
-  const shotPlan = await planShots(project.prompt, payload.projectId);
+  const planningSettings = {
+    targetShotCount: project.target_shot_count,
+    aspectRatio: project.aspect_ratio,
+    styleHint: project.style_hint
+  };
+
+  const shotPlan = await planShots(project.prompt, payload.projectId, planningSettings);
   const shots = shotPlan.shots;
   await localAssetService.ensureProjectDirectories(payload.projectId);
   const persistedShots = await createGenerationShots({
@@ -113,19 +119,25 @@ async function processGenerationJob(payload: GenerationJobPayload): Promise<void
     let clipResult;
     try {
       clipResult = await generateVideoClip({
-        prompt: shot.description,
+        prompt: shot.cameraNotes ? `${shot.description}\n\nCamera notes: ${shot.cameraNotes}` : shot.description,
         outputPath: clipPath,
         model: jobRecord.provider_model ?? executionConfig.model,
-        durationSeconds: executionConfig.durationSeconds,
+        durationSeconds: shot.durationSeconds || executionConfig.durationSeconds,
+        aspectRatio: project.aspect_ratio ?? undefined,
+        negativePrompt: shot.negativePrompt ?? undefined,
         providerTaskId: persistedShot?.provider_task_id ?? undefined,
         shouldAbort: async () => isCancelRequested(payload.jobId),
-        onProviderTaskCreated: async ({ providerTaskId, providerRequestId }) => {
+        onProviderTaskCreated: async ({ providerTaskId, providerRequestId, providerRequestPayload }) => {
+          console.log(
+            `[worker] shot=${shot.shotNumber} provider_request=${providerRequestPayload ?? "unavailable"}`
+          );
           await updateGenerationShot({
             jobId: payload.jobId,
             shotNumber: shot.shotNumber,
             status: "generating",
             providerTaskId,
-            providerRequestId
+            providerRequestId,
+            providerRequestPayload
           });
         }
       });
@@ -144,6 +156,7 @@ async function processGenerationJob(payload: GenerationJobPayload): Promise<void
       status: "completed",
       providerTaskId: clipResult.providerTaskId,
       providerRequestId: clipResult.providerRequestId,
+      providerRequestPayload: clipResult.providerRequestPayload,
       providerUnitsConsumed: clipResult.providerUnitsConsumed,
       providerTerminalPayload: clipResult.providerTerminalPayload,
       assetPath: clipPath,

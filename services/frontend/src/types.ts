@@ -4,8 +4,17 @@ export interface Project {
   prompt: string;
   status: string;
   output_url: string | null;
+  target_shot_count: number | null;
+  aspect_ratio: string | null;
+  style_hint: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface ProjectPlanningSettings {
+  targetShotCount?: number | null;
+  aspectRatio?: "16:9" | "9:16" | "1:1" | null;
+  styleHint?: string | null;
 }
 
 export interface ProjectShotPlanItem {
@@ -50,7 +59,9 @@ export interface GenerationShot {
   asset_url: string | null;
   provider_task_id: string | null;
   provider_request_id: string | null;
+  provider_request_payload?: string | null;
   provider_units_consumed: string | null;
+  provider_terminal_payload?: string | null;
   created_at: string;
   updated_at: string;
 }

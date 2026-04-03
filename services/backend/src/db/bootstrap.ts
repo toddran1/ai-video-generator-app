@@ -16,9 +16,27 @@ export async function bootstrapDatabase(): Promise<void> {
           prompt TEXT NOT NULL,
           status TEXT NOT NULL DEFAULT 'draft',
           output_url TEXT,
+          target_shot_count INTEGER,
+          aspect_ratio TEXT,
+          style_hint TEXT,
           created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
           updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         )
+      `);
+
+      await pool.query(`
+        ALTER TABLE projects
+        ADD COLUMN IF NOT EXISTS target_shot_count INTEGER
+      `);
+
+      await pool.query(`
+        ALTER TABLE projects
+        ADD COLUMN IF NOT EXISTS aspect_ratio TEXT
+      `);
+
+      await pool.query(`
+        ALTER TABLE projects
+        ADD COLUMN IF NOT EXISTS style_hint TEXT
       `);
 
       await pool.query(`
@@ -88,6 +106,7 @@ export async function bootstrapDatabase(): Promise<void> {
           provider TEXT NOT NULL,
           provider_task_id TEXT,
           provider_request_id TEXT,
+          provider_request_payload TEXT,
           provider_units_consumed TEXT,
           provider_terminal_payload TEXT,
           asset_path TEXT,
@@ -106,6 +125,11 @@ export async function bootstrapDatabase(): Promise<void> {
       await pool.query(`
         ALTER TABLE generation_shots
         ADD COLUMN IF NOT EXISTS provider_request_id TEXT
+      `);
+
+      await pool.query(`
+        ALTER TABLE generation_shots
+        ADD COLUMN IF NOT EXISTS provider_request_payload TEXT
       `);
 
       await pool.query(`

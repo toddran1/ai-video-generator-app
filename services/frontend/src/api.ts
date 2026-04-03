@@ -1,4 +1,11 @@
-import type { ApiResponse, GenerationJobStatus, Project, ProjectGenerationStatus, ProjectShotPlanItem } from "./types";
+import type {
+  ApiResponse,
+  GenerationJobStatus,
+  Project,
+  ProjectGenerationStatus,
+  ProjectPlanningSettings,
+  ProjectShotPlanItem
+} from "./types";
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`/api${path}`, {
@@ -21,9 +28,16 @@ export async function listProjects() {
   return request<ApiResponse<Project[]>>("/projects");
 }
 
-export async function createProject(input: { title: string; prompt: string }) {
+export async function createProject(input: { title: string; prompt: string } & ProjectPlanningSettings) {
   return request<ApiResponse<Project>>("/projects", {
     method: "POST",
+    body: JSON.stringify(input)
+  });
+}
+
+export async function updateProjectSettings(projectId: string, input: ProjectPlanningSettings) {
+  return request<ApiResponse<Project>>(`/projects/${projectId}/settings`, {
+    method: "PUT",
     body: JSON.stringify(input)
   });
 }

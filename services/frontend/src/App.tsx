@@ -10,6 +10,7 @@ import {
   listProjects,
   retryGenerationJob,
   retryGenerationShot,
+  updateProjectSettings,
   updateProjectShotPlan
 } from "./api";
 import type {
@@ -18,19 +19,27 @@ import type {
   GenerationShot,
   Project,
   ProjectGenerationStatus,
+  ProjectPlanningSettings,
   ProjectShotPlanItem
 } from "./types";
 
 interface ProjectFormState {
   title: string;
   prompt: string;
+  targetShotCount: number;
+  aspectRatio: "16:9" | "9:16" | "1:1";
+  styleHint: string;
 }
 
 type GenerationProfile = "testing" | "production";
+type DetailTab = "workflow" | "diagnostics";
 
 const initialFormState: ProjectFormState = {
   title: "",
-  prompt: ""
+  prompt: "",
+  targetShotCount: 3,
+  aspectRatio: "16:9",
+  styleHint: ""
 };
 
 const defaultShotPlan: ProjectShotPlanItem[] = [
@@ -40,6 +49,10 @@ const defaultShotPlan: ProjectShotPlanItem[] = [
 ];
 
 const terminalStatuses = new Set(["completed", "failed"]);
+const estimatedUnitsPerShot: Record<GenerationProfile, number> = {
+  testing: 1,
+  production: 2
+};
 
 function formatStatus(status: string) {
   return status.replace(/_/g, " ");
@@ -70,6 +83,25 @@ function getShotPlanSummary(shots: ProjectShotPlanItem[]) {
   return `${shots.length} shots · ${totalDuration}s total`;
 }
 
+function normalizeShotNumbers(shots: ProjectShotPlanItem[]) {
+  return shots.map((shot, index) => ({ ...shot, shotNumber: index + 1 }));
+}
+
+function getEstimatedCredits(shots: ProjectShotPlanItem[], profile: GenerationProfile) {
+  return shots.length * estimatedUnitsPerShot[profile];
+}
+
+function getPerShotEstimatedCredits(profile: GenerationProfile) {
+  return estimatedUnitsPerShot[profile];
+}
+
+function reorderShots(shots: ProjectShotPlanItem[], fromIndex: number, toIndex: number) {
+  const next = [...shots];
+  const [moved] = next.splice(fromIndex, 1);
+  next.splice(toIndex, 0, moved);
+  return normalizeShotNumbers(next);
+}
+
 function getLatestJob(projectStatus?: ProjectGenerationStatus) {
   return projectStatus?.jobs[0] ?? null;
 }
@@ -84,6 +116,34 @@ function getProjectStats(projects: Project[]) {
     active: projects.filter((project) => !terminalStatuses.has(project.status)).length,
     completed: projects.filter((project) => project.status === "completed").length
   };
+}
+
+function getShotLabel(shotNumber: number) {
+  if (shotNumber === 1) {
+    return "Intro";
+  }
+
+  if (shotNumber === 2) {
+    return "Continuation";
+  }
+
+  if (shotNumber === 3) {
+    return "Climax";
+  }
+
+  return `Shot ${shotNumber}`;
+}
+
+function formatJsonPayload(payload?: string | null) {
+  if (!payload) {
+    return "";
+  }
+
+  try {
+    return JSON.stringify(JSON.parse(payload), null, 2);
+  } catch {
+    return payload;
+  }
 }
 
 function getShotStatusSummary(shots: GenerationShot[]) {
@@ -122,14 +182,22 @@ export default function App() {
   const [savedShotPlan, setSavedShotPlan] = useState<ProjectShotPlanItem[]>([]);
   const [autoShotPlanPreview, setAutoShotPlanPreview] = useState<ProjectShotPlanItem[]>([]);
   const [formState, setFormState] = useState<ProjectFormState>(initialFormState);
+  const [planningSettings, setPlanningSettings] = useState<ProjectPlanningSettings>({
+    targetShotCount: 3,
+    aspectRatio: "16:9",
+    styleHint: ""
+  });
   const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
   const [activeRetryJobId, setActiveRetryJobId] = useState<string | null>(null);
   const [activeShotAction, setActiveShotAction] = useState<string | null>(null);
   const [generationProfile, setGenerationProfile] = useState<GenerationProfile>("testing");
+  const [detailTab, setDetailTab] = useState<DetailTab>("workflow");
   const [isSavingShotPlan, setIsSavingShotPlan] = useState(false);
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [pendingGenerateProjectId, setPendingGenerateProjectId] = useState<string | null>(null);
+  const [draggedShotIndex, setDraggedShotIndex] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function refreshProjectStatus(projectId: string) {
@@ -238,13 +306,22 @@ export default function App() {
       return;
     }
 
+    const selectedProject = projects.find((project) => project.id === selectedProjectId);
+    if (selectedProject) {
+      setPlanningSettings({
+        targetShotCount: selectedProject.target_shot_count ?? 3,
+        aspectRatio: (selectedProject.aspect_ratio as "16:9" | "9:16" | "1:1" | null) ?? "16:9",
+        styleHint: selectedProject.style_hint ?? ""
+      });
+    }
+
     void refreshProjectShotPlan(selectedProjectId).catch((shotPlanError) => {
       setError(shotPlanError instanceof Error ? shotPlanError.message : "Unable to load shot plan");
     });
     void refreshAutoShotPlan(selectedProjectId).catch((shotPlanError) => {
       setError(shotPlanError instanceof Error ? shotPlanError.message : "Unable to load auto shot plan");
     });
-  }, [selectedProjectId]);
+  }, [projects, selectedProjectId]);
 
   useEffect(() => {
     if (!selectedJobId) {
@@ -305,6 +382,29 @@ export default function App() {
       setError(createError instanceof Error ? createError.message : "Unable to create project");
     } finally {
       setIsCreating(false);
+    }
+  }
+
+  async function handleSaveProjectSettings() {
+    if (!selectedProjectId) {
+      return;
+    }
+
+    setIsSavingSettings(true);
+    setError(null);
+
+    try {
+      await updateProjectSettings(selectedProjectId, {
+        targetShotCount: planningSettings.targetShotCount ?? 3,
+        aspectRatio: planningSettings.aspectRatio ?? "16:9",
+        styleHint: planningSettings.styleHint ?? ""
+      });
+      await refreshDashboardData();
+      await refreshAutoShotPlan(selectedProjectId);
+    } catch (settingsError) {
+      setError(settingsError instanceof Error ? settingsError.message : "Unable to save project settings");
+    } finally {
+      setIsSavingSettings(false);
     }
   }
 
@@ -389,8 +489,8 @@ export default function App() {
     setError(null);
 
     try {
-      const normalized = editableShotPlan.map((shot, index) => ({
-        shotNumber: index + 1,
+      const normalized = normalizeShotNumbers(editableShotPlan).map((shot) => ({
+        shotNumber: shot.shotNumber,
         description: shot.description,
         durationSeconds: shot.durationSeconds,
         negativePrompt: shot.negativePrompt ?? "",
@@ -416,6 +516,9 @@ export default function App() {
   const projectJobs = selectedStatus?.jobs ?? [];
   const diagnosticJobId = diagnosticJob?.job.id ?? null;
   const usingManualShotPlan = savedShotPlan.length > 0;
+  const activePlanForEstimate = usingManualShotPlan ? savedShotPlan : editableShotPlan;
+  const estimatedCredits = getEstimatedCredits(activePlanForEstimate, generationProfile);
+  const perShotEstimate = getPerShotEstimatedCredits(generationProfile);
 
   return (
     <div className="page-shell">
@@ -474,6 +577,47 @@ export default function App() {
                   placeholder="A cinematic drone shot over a futuristic city at sunrise..."
                   rows={6}
                   required
+                />
+              </label>
+
+              <div className="project-settings-grid">
+                <label>
+                  <span>Target Shot Count</span>
+                  <input
+                    min={1}
+                    max={12}
+                    onChange={(event) =>
+                      setFormState((current) => ({ ...current, targetShotCount: Number(event.target.value) || 3 }))
+                    }
+                    type="number"
+                    value={formState.targetShotCount}
+                  />
+                </label>
+
+                <label>
+                  <span>Aspect Ratio</span>
+                  <select
+                    onChange={(event) =>
+                      setFormState((current) => ({
+                        ...current,
+                        aspectRatio: event.target.value as "16:9" | "9:16" | "1:1"
+                      }))
+                    }
+                    value={formState.aspectRatio}
+                  >
+                    <option value="16:9">16:9</option>
+                    <option value="9:16">9:16</option>
+                    <option value="1:1">1:1</option>
+                  </select>
+                </label>
+              </div>
+
+              <label>
+                <span>Style Hint</span>
+                <input
+                  value={formState.styleHint}
+                  onChange={(event) => setFormState((current) => ({ ...current, styleHint: event.target.value }))}
+                  placeholder="moody cinematic, bright product ad, anime-inspired..."
                 />
               </label>
 
@@ -677,6 +821,25 @@ export default function App() {
 
             {selectedProject ? (
               <div className="detail-view">
+                <div className="detail-tab-row">
+                  <button
+                    className={`toggle-pill ${detailTab === "workflow" ? "toggle-pill-active" : ""}`}
+                    onClick={() => setDetailTab("workflow")}
+                    type="button"
+                  >
+                    Workflow
+                  </button>
+                  <button
+                    className={`toggle-pill ${detailTab === "diagnostics" ? "toggle-pill-active" : ""}`}
+                    onClick={() => setDetailTab("diagnostics")}
+                    type="button"
+                  >
+                    Diagnostics
+                  </button>
+                </div>
+
+                {detailTab === "workflow" ? (
+                  <>
                 <div className="detail-view-grid">
                   <div className="detail-stat-card">
                     <span className="metric-label">Project Status</span>
@@ -703,6 +866,75 @@ export default function App() {
                     <span className="metric-label">Manual Plan Summary</span>
                     <span>{usingManualShotPlan ? getShotPlanSummary(savedShotPlan) : "No saved manual plan"}</span>
                   </div>
+                  <div className="detail-row">
+                    <span className="metric-label">Estimated Credits</span>
+                    <span>
+                      ~{estimatedCredits} unit{estimatedCredits === 1 ? "" : "s"} in {generationProfile} mode
+                    </span>
+                  </div>
+                </div>
+
+                <div className="detail-section">
+                  <div className="section-head">
+                    <div>
+                      <p className="eyebrow">Project Planning Controls</p>
+                      <h3>Guide auto planning and generation defaults</h3>
+                    </div>
+                    <button
+                      className="primary-button"
+                      disabled={isSavingSettings}
+                      onClick={() => void handleSaveProjectSettings()}
+                      type="button"
+                    >
+                      {isSavingSettings ? "Saving..." : "Save Settings"}
+                    </button>
+                  </div>
+
+                  <div className="project-settings-grid">
+                    <label>
+                      <span>Target Shot Count</span>
+                      <input
+                        min={1}
+                        max={12}
+                        onChange={(event) =>
+                          setPlanningSettings((current) => ({
+                            ...current,
+                            targetShotCount: Number(event.target.value) || 3
+                          }))
+                        }
+                        type="number"
+                        value={planningSettings.targetShotCount ?? 3}
+                      />
+                    </label>
+
+                    <label>
+                      <span>Aspect Ratio</span>
+                      <select
+                        onChange={(event) =>
+                          setPlanningSettings((current) => ({
+                            ...current,
+                            aspectRatio: event.target.value as "16:9" | "9:16" | "1:1"
+                          }))
+                        }
+                        value={planningSettings.aspectRatio ?? "16:9"}
+                      >
+                        <option value="16:9">16:9</option>
+                        <option value="9:16">9:16</option>
+                        <option value="1:1">1:1</option>
+                      </select>
+                    </label>
+                  </div>
+
+                  <label className="project-settings-stack">
+                    <span>Style Hint</span>
+                    <input
+                      onChange={(event) =>
+                        setPlanningSettings((current) => ({ ...current, styleHint: event.target.value }))
+                      }
+                      placeholder="moody cinematic, luxury fashion, documentary realism..."
+                      value={planningSettings.styleHint ?? ""}
+                    />
+                  </label>
                 </div>
 
                 <div className="detail-section">
@@ -710,36 +942,93 @@ export default function App() {
                     <div>
                       <p className="eyebrow">Shot Plan Editor</p>
                       <h3>Override automatic planning for this project</h3>
+                      <p className="project-card-caption">
+                        Reorder shots, tune camera notes, and save a manual plan before you spend credits.
+                      </p>
                     </div>
-                    <button
-                      className="primary-button"
-                      disabled={isSavingShotPlan}
-                      onClick={() => void handleSaveShotPlan()}
-                      type="button"
-                    >
-                      {isSavingShotPlan ? "Saving..." : "Save Shot Plan"}
-                    </button>
+                    <div className="section-actions">
+                      <button
+                        className="ghost-button"
+                        onClick={() =>
+                          setEditableShotPlan(usingManualShotPlan ? savedShotPlan : defaultShotPlan)
+                        }
+                        type="button"
+                      >
+                        Reset Editor
+                      </button>
+                      <button
+                        className="ghost-button"
+                        disabled={autoShotPlanPreview.length === 0}
+                        onClick={() =>
+                          setEditableShotPlan(
+                            normalizeShotNumbers(
+                              autoShotPlanPreview.map((shot) => ({
+                                ...shot,
+                                negativePrompt: shot.negativePrompt ?? "",
+                                cameraNotes: shot.cameraNotes ?? ""
+                              }))
+                            )
+                          )
+                        }
+                        type="button"
+                      >
+                        Copy Auto Plan Into Editor
+                      </button>
+                      <button
+                        className="primary-button"
+                        disabled={isSavingShotPlan}
+                        onClick={() => void handleSaveShotPlan()}
+                        type="button"
+                      >
+                        {isSavingShotPlan ? "Saving..." : "Save Shot Plan"}
+                      </button>
+                    </div>
                   </div>
 
                   <div className="shot-plan-editor">
                     {editableShotPlan.map((shot, index) => (
-                      <div className="shot-plan-editor-row" key={`shot-plan-${index}`}>
+                      <div
+                        className={`shot-plan-editor-row ${draggedShotIndex === index ? "shot-plan-editor-row-dragging" : ""}`}
+                        draggable
+                        key={`shot-plan-${index}`}
+                        onDragEnd={() => setDraggedShotIndex(null)}
+                        onDragOver={(event) => {
+                          event.preventDefault();
+                        }}
+                        onDragStart={() => setDraggedShotIndex(index)}
+                        onDrop={(event) => {
+                          event.preventDefault();
+
+                          if (draggedShotIndex === null || draggedShotIndex === index) {
+                            setDraggedShotIndex(null);
+                            return;
+                          }
+
+                          setEditableShotPlan((current) => reorderShots(current, draggedShotIndex, index));
+                          setDraggedShotIndex(null);
+                        }}
+                      >
                         <div className="shot-plan-editor-head">
-                          <span className="shot-index">Shot {index + 1}</span>
-                          <button
-                            className="ghost-button"
-                            disabled={editableShotPlan.length <= 1}
-                            onClick={() =>
-                              setEditableShotPlan((current) =>
-                                current
-                                  .filter((_, currentIndex) => currentIndex !== index)
-                                  .map((item, nextIndex) => ({ ...item, shotNumber: nextIndex + 1 }))
-                              )
-                            }
-                            type="button"
-                          >
-                            Remove
-                          </button>
+                          <div className="shot-index-group">
+                            <span className="drag-handle" title="Drag to reorder">
+                              Drag
+                            </span>
+                            <span className="shot-index">Shot {index + 1}</span>
+                          </div>
+                          <div className="editor-row-actions">
+                            <button
+                              className="ghost-button"
+                              disabled={editableShotPlan.length <= 1}
+                              onClick={() =>
+                                setEditableShotPlan((current) =>
+                                  normalizeShotNumbers(current.filter((_, currentIndex) => currentIndex !== index))
+                                )
+                              }
+                              type="button"
+                            >
+                              Remove
+                            </button>
+                          </div>
                         </div>
                         <textarea
                           className="shot-plan-input"
@@ -797,21 +1086,29 @@ export default function App() {
                             value={shot.durationSeconds}
                           />
                         </label>
+                        <div className="shot-plan-estimate-row">
+                          <span className="metric-label">Shot Estimate</span>
+                          <span>
+                            ~{perShotEstimate} unit{perShotEstimate === 1 ? "" : "s"} · {shot.durationSeconds}s
+                          </span>
+                        </div>
                       </div>
                     ))}
                     <button
                       className="secondary-button"
                       onClick={() =>
-                        setEditableShotPlan((current) => [
-                          ...current,
-                          {
-                            shotNumber: current.length + 1,
-                            description: `New shot ${current.length + 1}`,
-                            durationSeconds: 3,
-                            negativePrompt: "",
-                            cameraNotes: ""
-                          }
-                        ])
+                        setEditableShotPlan((current) =>
+                          normalizeShotNumbers([
+                            ...current,
+                            {
+                              shotNumber: current.length + 1,
+                              description: `New shot ${current.length + 1}`,
+                              durationSeconds: 3,
+                              negativePrompt: "",
+                              cameraNotes: ""
+                            }
+                          ])
+                        )
                       }
                       type="button"
                     >
@@ -981,7 +1278,11 @@ export default function App() {
                     <div className="empty-state">No job history recorded yet.</div>
                   )}
                 </div>
+                  </>
+                ) : null}
 
+                {detailTab === "diagnostics" ? (
+                <>
                 <div className="detail-section">
                   <div className="section-head">
                     <div>
@@ -1051,7 +1352,9 @@ export default function App() {
                       {diagnosticShots.map((shot) => (
                         <div className="shot-row" key={shot.id}>
                           <div className="shot-row-head">
-                            <span className="shot-index">Shot {shot.shot_number}</span>
+                            <span className="shot-index">
+                              Shot {shot.shot_number}: {getShotLabel(shot.shot_number)}
+                            </span>
                             <span className={`status-pill status-${shot.status}`}>{formatStatus(shot.status)}</span>
                           </div>
                           <p className="shot-description">{shot.description}</p>
@@ -1093,7 +1396,11 @@ export default function App() {
                               </button>
                             ) : null}
                           </div>
-                          {(shot.provider_task_id || shot.provider_request_id || shot.provider_units_consumed) ? (
+                          {(shot.provider_task_id ||
+                            shot.provider_request_id ||
+                            shot.provider_units_consumed ||
+                            shot.provider_request_payload ||
+                            shot.provider_terminal_payload) ? (
                             <div className="provider-meta-card">
                               {shot.provider_task_id ? (
                                 <div className="detail-row">
@@ -1113,6 +1420,22 @@ export default function App() {
                                   <span>{shot.provider_units_consumed}</span>
                                 </div>
                               ) : null}
+                              {shot.provider_request_payload ? (
+                                <details className="payload-block">
+                                  <summary>
+                                    <span className="metric-label">Request Payload</span>
+                                  </summary>
+                                  <pre>{formatJsonPayload(shot.provider_request_payload)}</pre>
+                                </details>
+                              ) : null}
+                              {shot.provider_terminal_payload ? (
+                                <details className="payload-block">
+                                  <summary>
+                                    <span className="metric-label">Response Payload</span>
+                                  </summary>
+                                  <pre>{formatJsonPayload(shot.provider_terminal_payload)}</pre>
+                                </details>
+                              ) : null}
                             </div>
                           ) : null}
                         </div>
@@ -1122,6 +1445,8 @@ export default function App() {
                     <div className="empty-state">Shot metadata will appear here after planning begins.</div>
                   )}
                 </div>
+                </>
+                ) : null}
               </div>
             ) : (
               <div className="empty-state">Select a project card to inspect its latest job and shots.</div>
@@ -1131,13 +1456,19 @@ export default function App() {
       </main>
       {pendingGenerateProjectId ? (
         <div className="modal-backdrop">
-          <div className="modal-card">
-            <p className="eyebrow">Confirm Generation</p>
-            <h3>Generate from saved manual shot plan?</h3>
-            <p className="detail-copy">
-              This project has a saved shot plan. Starting generation will use those manual shots instead of the automatic planner and will spend provider credits.
-            </p>
-            <div className="modal-actions">
+            <div className="modal-card">
+              <p className="eyebrow">Confirm Generation</p>
+              <h3>Generate from saved manual shot plan?</h3>
+              <p className="detail-copy">
+                This project has a saved shot plan. Starting generation will use those manual shots instead of the automatic planner and will spend provider credits.
+              </p>
+              <div className="estimate-banner">
+                <span className="metric-label">Estimated Usage</span>
+                <strong>
+                  ~{getEstimatedCredits(savedShotPlan, generationProfile)} unit{getEstimatedCredits(savedShotPlan, generationProfile) === 1 ? "" : "s"}
+                </strong>
+              </div>
+              <div className="modal-actions">
               <button
                 className="secondary-button"
                 onClick={() => setPendingGenerateProjectId(null)}
