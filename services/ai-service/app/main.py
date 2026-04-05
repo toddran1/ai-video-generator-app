@@ -13,4 +13,4 @@ def health() -> dict[str, str]:
 
 @app.post("/plan-shots", response_model=ShotPlanResponse)
 def plan_shots(payload: ShotPlanRequest) -> ShotPlanResponse:
-    return build_shot_plan(payload.prompt)
+    return build_shot_plan(payload)

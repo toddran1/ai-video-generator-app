@@ -14,6 +14,7 @@ import {
   resetGenerationShotsForRetry,
   resetGenerationJobForRetry
 } from "./generate.repository.js";
+import { getVideoProviderCapabilities } from "./provider-capabilities.service.js";
 import { resolveProviderExecutionConfig, type GenerationProfile } from "./generation-profile.service.js";
 
 async function queueGenerationJob(params: { jobId: string; projectId: string }) {
@@ -161,6 +162,10 @@ export async function getGenerationJobStatus(jobId: string) {
     job,
     shots
   };
+}
+
+export async function getProviderConfig() {
+  return getVideoProviderCapabilities();
 }
 
 export async function getProjectGenerationStatus(projectId: string) {

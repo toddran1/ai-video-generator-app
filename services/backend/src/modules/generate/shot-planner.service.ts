@@ -11,19 +11,30 @@ export interface ShotPlanResult {
 }
 
 function buildPlannerPrompt(prompt: string, settings?: ProjectPlanningSettings): string {
+  const targetShotCount = Math.min(Math.max(settings?.targetShotCount ?? 3, 1), 12);
+  const defaultStoryBeats = ["Intro", "Continuation", "Climax", "Resolution", "Outro"].slice(
+    0,
+    targetShotCount
+  );
+  const narrativeMode = settings?.narrativeMode ? `Narrative mode: ${settings.narrativeMode}.` : null;
+  const beatDescriptionInstruction =
+    settings?.autoBeatDescriptions === false
+      ? "Do not auto-generate beat descriptions. Prefer concise structural shot labels and minimal assumptions."
+      : "Generate beat-aware shot descriptions that reflect the story progression.";
+
   if (!settings) {
-    return prompt;
+    return `${prompt}\n\nPlanning guidance:\nSuggested story beats: ${defaultStoryBeats.join(", ")}.\n${beatDescriptionInstruction}`;
   }
 
   const instructions = [
     settings.targetShotCount ? `Target shot count: ${settings.targetShotCount}.` : null,
+    settings.defaultBeatDuration ? `Default beat duration: ${settings.defaultBeatDuration} seconds.` : null,
     settings.aspectRatio ? `Aspect ratio: ${settings.aspectRatio}.` : null,
-    settings.styleHint ? `Style direction: ${settings.styleHint}.` : null
+    settings.styleHint ? `Style direction: ${settings.styleHint}.` : null,
+    narrativeMode,
+    `Suggested story beats: ${defaultStoryBeats.join(", ")}.`,
+    beatDescriptionInstruction
   ].filter(Boolean);
-
-  if (instructions.length === 0) {
-    return prompt;
-  }
 
   return `${prompt}\n\nPlanning guidance:\n${instructions.join("\n")}`;
 }
@@ -41,8 +52,12 @@ export async function planShots(
         provider: "project-shot-plan",
         shots: savedShots.map((shot) => ({
           shotNumber: shot.shot_number,
+          beatLabel: shot.beat_label,
           description: shot.description,
           durationSeconds: shot.duration_seconds,
+          generationMode: shot.generation_mode as "generate" | "extend-previous" | null,
+          sourceShotNumber: shot.source_shot_number,
+          extendPrompt: shot.extend_prompt,
           negativePrompt: shot.negative_prompt,
           cameraNotes: shot.camera_notes
         }))

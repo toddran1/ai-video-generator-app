@@ -29,6 +29,10 @@ select {
   font: inherit;
 }
 
+:root {
+  color-scheme: dark;
+}
+
 a {
   color: inherit;
 }
@@ -184,6 +188,18 @@ a {
   padding: 0.95rem 1rem;
 }
 
+.project-form select,
+.project-settings-grid select {
+  color-scheme: dark;
+  background-color: rgba(24, 34, 43, 0.96);
+}
+
+.project-form select option,
+.project-settings-grid select option {
+  background-color: #18222b;
+  color: #f5efe2;
+}
+
 .project-form input::placeholder,
 .project-form textarea::placeholder {
   color: rgba(245, 239, 226, 0.35);
@@ -206,8 +222,75 @@ a {
   gap: 0.45rem;
 }
 
+.checkbox-label {
+  display: flex !important;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.checkbox-label input {
+  width: auto;
+}
+
 .project-settings-stack {
   margin-top: 1rem;
+}
+
+.advanced-settings-card {
+  display: grid;
+  gap: 1rem;
+  padding: 1rem;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.advanced-tab-panel {
+  display: grid;
+  gap: 1rem;
+  padding: 1rem;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.advanced-panel-header {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.slider-label {
+  gap: 0.65rem;
+}
+
+.slider-label-full {
+  grid-column: 1 / -1;
+}
+
+.slider-control {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.8rem;
+  align-items: center;
+}
+
+.slider-control strong {
+  min-width: 3rem;
+  text-align: right;
+  color: rgba(245, 239, 226, 0.9);
+}
+
+.slider-control input[type="range"] {
+  padding: 0;
+  background: transparent;
+  border: 0;
+  accent-color: #d08a4b;
+}
+
+
+.project-settings-grid-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .profile-toggle-card {
@@ -435,10 +518,70 @@ a {
   margin-top: 0.75rem;
 }
 
+.shot-error-banner {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
 .shot-plan-editor {
   display: grid;
   gap: 0.9rem;
   margin-top: 1rem;
+}
+
+.story-template-row {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  padding: 0.9rem 1rem;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.continuity-card {
+  display: grid;
+  gap: 0.8rem;
+  margin-top: 0.8rem;
+  padding: 1rem;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.continuity-chain {
+  display: flex;
+  gap: 0.7rem;
+  flex-wrap: wrap;
+  align-items: stretch;
+}
+
+.continuity-node-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+}
+
+.continuity-node {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 13rem;
+  padding: 0.85rem 0.95rem;
+  border-radius: 16px;
+  background: rgba(7, 10, 14, 0.56);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.continuity-node strong {
+  font-size: 0.95rem;
+  letter-spacing: -0.02em;
+}
+
+.continuity-arrow {
+  color: rgba(230, 140, 87, 0.85);
+  font-size: 1.1rem;
+  font-weight: 700;
 }
 
 .shot-plan-editor-row {
@@ -492,6 +635,12 @@ a {
   flex-wrap: wrap;
 }
 
+.shot-plan-field,
+.shot-plan-duration {
+  display: grid;
+  gap: 0.4rem;
+}
+
 .shot-plan-input,
 .shot-plan-duration input {
   width: 100%;
@@ -504,11 +653,6 @@ a {
 
 .shot-plan-input {
   resize: vertical;
-}
-
-.shot-plan-duration {
-  display: grid;
-  gap: 0.4rem;
 }
 
 .shot-plan-estimate-row {

@@ -4,8 +4,50 @@ import type {
   Project,
   ProjectGenerationStatus,
   ProjectPlanningSettings,
-  ProjectShotPlanItem
+  ProjectShotPlanItem,
+  VideoProviderConfig
 } from "./types";
+
+function toTitleCase(value: string) {
+  return value
+    .replace(/([A-Z])/g, " $1")
+    .replace(/[_-]/g, " ")
+    .trim()
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function parseApiError(body: string, status: number) {
+  if (!body) {
+    return `Request failed with status ${status}`;
+  }
+
+  try {
+    const parsed = JSON.parse(body) as { error?: string };
+    const errorText = parsed.error ?? body;
+
+    try {
+      const issues = JSON.parse(errorText) as Array<{
+        path?: Array<string | number>;
+        message?: string;
+      }>;
+
+      if (Array.isArray(issues) && issues.length > 0) {
+        return issues
+          .map((issue) => {
+            const field = issue.path?.length ? toTitleCase(String(issue.path[0])) : "Field";
+            return `${field}: ${issue.message ?? "Invalid value"}`;
+          })
+          .join("\n");
+      }
+    } catch {
+      return errorText;
+    }
+
+    return errorText;
+  } catch {
+    return body;
+  }
+}
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`/api${path}`, {
@@ -18,7 +60,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
   if (!response.ok) {
     const body = await response.text();
-    throw new Error(body || `Request failed with status ${response.status}`);
+    throw new Error(parseApiError(body, response.status));
   }
 
   return response.json() as Promise<T>;
@@ -47,10 +89,23 @@ export async function getProjectShotPlan(projectId: string) {
     id: string;
     project_id: string;
     shot_number: number;
+    beat_label: string | null;
     description: string;
     duration_seconds: number;
+    generation_mode: string | null;
+    source_shot_number: number | null;
+    extend_prompt: string | null;
     negative_prompt: string | null;
     camera_notes: string | null;
+    kling_mode: string | null;
+    kling_cfg_scale: number | null;
+    kling_camera_control_type: string | null;
+    kling_camera_horizontal: number | null;
+    kling_camera_vertical: number | null;
+    kling_camera_pan: number | null;
+    kling_camera_tilt: number | null;
+    kling_camera_roll: number | null;
+    kling_camera_zoom: number | null;
     created_at: string;
     updated_at: string;
   }>>>(`/projects/${projectId}/shot-plan`);
@@ -65,10 +120,23 @@ export async function updateProjectShotPlan(projectId: string, shots: ProjectSho
     id: string;
     project_id: string;
     shot_number: number;
+    beat_label: string | null;
     description: string;
     duration_seconds: number;
+    generation_mode: string | null;
+    source_shot_number: number | null;
+    extend_prompt: string | null;
     negative_prompt: string | null;
     camera_notes: string | null;
+    kling_mode: string | null;
+    kling_cfg_scale: number | null;
+    kling_camera_control_type: string | null;
+    kling_camera_horizontal: number | null;
+    kling_camera_vertical: number | null;
+    kling_camera_pan: number | null;
+    kling_camera_tilt: number | null;
+    kling_camera_roll: number | null;
+    kling_camera_zoom: number | null;
     created_at: string;
     updated_at: string;
   }>>>(`/projects/${projectId}/shot-plan`, {
@@ -110,4 +178,8 @@ export async function getProjectGenerationStatus(projectId: string) {
 
 export async function getGenerationJob(jobId: string) {
   return request<ApiResponse<GenerationJobStatus>>(`/generate/jobs/${jobId}`);
+}
+
+export async function getVideoProviderConfig() {
+  return request<ApiResponse<VideoProviderConfig>>("/generate/provider-config");
 }

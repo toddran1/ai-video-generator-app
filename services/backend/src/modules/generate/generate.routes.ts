@@ -4,6 +4,7 @@ import { generateVideoSchema } from "./generate.schemas.js";
 import {
   cancelGenerationShot,
   enqueueGeneration,
+  getProviderConfig,
   getGenerationJobStatus,
   getProjectGenerationStatus,
   retryGenerationJob,
@@ -11,6 +12,14 @@ import {
 } from "./generate.service.js";
 
 export const generateRouter = Router();
+
+generateRouter.get(
+  "/provider-config",
+  asyncHandler(async (_req, res) => {
+    const result = await getProviderConfig();
+    res.json({ data: result });
+  })
+);
 
 generateRouter.get(
   "/jobs/:jobId",

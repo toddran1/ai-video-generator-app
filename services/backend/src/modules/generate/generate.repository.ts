@@ -153,16 +153,46 @@ export async function createGenerationShots(params: {
           job_id,
           project_id,
           shot_number,
+          beat_label,
           description,
           duration_seconds,
+          generation_mode,
+          source_shot_number,
+          extend_prompt,
+          negative_prompt,
+          camera_notes,
+          kling_mode,
+          kling_cfg_scale,
+          kling_camera_control_type,
+          kling_camera_horizontal,
+          kling_camera_vertical,
+          kling_camera_pan,
+          kling_camera_tilt,
+          kling_camera_roll,
+          kling_camera_zoom,
           status,
           provider
         )
-        VALUES ($1, $2, $3, $4, $5, $6, 'planned', $7)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, 'planned', $22)
         ON CONFLICT (job_id, shot_number)
         DO UPDATE SET
+          beat_label = EXCLUDED.beat_label,
           description = EXCLUDED.description,
           duration_seconds = EXCLUDED.duration_seconds,
+          generation_mode = EXCLUDED.generation_mode,
+          source_shot_number = EXCLUDED.source_shot_number,
+          extend_prompt = EXCLUDED.extend_prompt,
+          negative_prompt = EXCLUDED.negative_prompt,
+          camera_notes = EXCLUDED.camera_notes,
+          kling_mode = EXCLUDED.kling_mode,
+          kling_cfg_scale = EXCLUDED.kling_cfg_scale,
+          kling_camera_control_type = EXCLUDED.kling_camera_control_type,
+          kling_camera_horizontal = EXCLUDED.kling_camera_horizontal,
+          kling_camera_vertical = EXCLUDED.kling_camera_vertical,
+          kling_camera_pan = EXCLUDED.kling_camera_pan,
+          kling_camera_tilt = EXCLUDED.kling_camera_tilt,
+          kling_camera_roll = EXCLUDED.kling_camera_roll,
+          kling_camera_zoom = EXCLUDED.kling_camera_zoom,
           provider = EXCLUDED.provider,
           updated_at = NOW()
         RETURNING *
@@ -172,8 +202,23 @@ export async function createGenerationShots(params: {
         params.jobId,
         params.projectId,
         shot.shotNumber,
+        shot.beatLabel ?? null,
         shot.description,
         shot.durationSeconds,
+        shot.generationMode ?? "generate",
+        shot.sourceShotNumber ?? null,
+        shot.extendPrompt ?? null,
+        shot.negativePrompt ?? null,
+        shot.cameraNotes ?? null,
+        shot.klingMode ?? null,
+        shot.klingCfgScale ?? null,
+        shot.klingCameraControlType ?? null,
+        shot.klingCameraHorizontal ?? null,
+        shot.klingCameraVertical ?? null,
+        shot.klingCameraPan ?? null,
+        shot.klingCameraTilt ?? null,
+        shot.klingCameraRoll ?? null,
+        shot.klingCameraZoom ?? null,
         params.provider
       ]
     );
@@ -190,9 +235,18 @@ export async function updateGenerationShot(params: {
   status: string;
   providerTaskId?: string;
   providerRequestId?: string;
+  sourceProviderOutputId?: string;
+  sourceProviderDurationSeconds?: number;
+  providerOutputId?: string;
+  providerOutputDurationSeconds?: number;
   providerRequestPayload?: string;
   providerUnitsConsumed?: string;
   providerTerminalPayload?: string;
+  errorMessage?: string;
+  stitchedSegmentPath?: string;
+  stitchedSegmentUrl?: string;
+  stitchedSegmentStartSeconds?: number;
+  stitchedSegmentDurationSeconds?: number;
   assetPath?: string;
   assetUrl?: string;
 }): Promise<void> {
@@ -202,11 +256,20 @@ export async function updateGenerationShot(params: {
       SET status = $3,
           provider_task_id = COALESCE($4, provider_task_id),
           provider_request_id = COALESCE($5, provider_request_id),
-          provider_request_payload = COALESCE($6, provider_request_payload),
-          provider_units_consumed = COALESCE($7, provider_units_consumed),
-          provider_terminal_payload = COALESCE($8, provider_terminal_payload),
-          asset_path = COALESCE($9, asset_path),
-          asset_url = COALESCE($10, asset_url),
+          source_provider_output_id = COALESCE($6, source_provider_output_id),
+          source_provider_duration_seconds = COALESCE($7, source_provider_duration_seconds),
+          provider_output_id = COALESCE($8, provider_output_id),
+          provider_output_duration_seconds = COALESCE($9, provider_output_duration_seconds),
+          provider_request_payload = COALESCE($10, provider_request_payload),
+          provider_units_consumed = COALESCE($11, provider_units_consumed),
+          provider_terminal_payload = COALESCE($12, provider_terminal_payload),
+          error_message = COALESCE($13, error_message),
+          stitched_segment_path = COALESCE($14, stitched_segment_path),
+          stitched_segment_url = COALESCE($15, stitched_segment_url),
+          stitched_segment_start_seconds = COALESCE($16, stitched_segment_start_seconds),
+          stitched_segment_duration_seconds = COALESCE($17, stitched_segment_duration_seconds),
+          asset_path = COALESCE($18, asset_path),
+          asset_url = COALESCE($19, asset_url),
           updated_at = NOW()
       WHERE job_id = $1 AND shot_number = $2
     `,
@@ -216,9 +279,18 @@ export async function updateGenerationShot(params: {
       params.status,
       params.providerTaskId ?? null,
       params.providerRequestId ?? null,
+      params.sourceProviderOutputId ?? null,
+      params.sourceProviderDurationSeconds ?? null,
+      params.providerOutputId ?? null,
+      params.providerOutputDurationSeconds ?? null,
       params.providerRequestPayload ?? null,
       params.providerUnitsConsumed ?? null,
       params.providerTerminalPayload ?? null,
+      params.errorMessage ?? null,
+      params.stitchedSegmentPath ?? null,
+      params.stitchedSegmentUrl ?? null,
+      params.stitchedSegmentStartSeconds ?? null,
+      params.stitchedSegmentDurationSeconds ?? null,
       params.assetPath ?? null,
       params.assetUrl ?? null
     ]
@@ -259,9 +331,18 @@ export async function resetGenerationShotsForRetry(jobId: string, fromShotNumber
       SET status = 'planned',
           provider_task_id = NULL,
           provider_request_id = NULL,
+          source_provider_output_id = NULL,
+          source_provider_duration_seconds = NULL,
+          provider_output_id = NULL,
+          provider_output_duration_seconds = NULL,
           provider_request_payload = NULL,
           provider_units_consumed = NULL,
           provider_terminal_payload = NULL,
+          error_message = NULL,
+          stitched_segment_path = NULL,
+          stitched_segment_url = NULL,
+          stitched_segment_start_seconds = NULL,
+          stitched_segment_duration_seconds = NULL,
           asset_path = NULL,
           asset_url = NULL,
           updated_at = NOW()

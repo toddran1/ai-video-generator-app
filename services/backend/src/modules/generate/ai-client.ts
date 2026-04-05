@@ -8,8 +8,11 @@ export async function requestShotPlan(prompt: string, settings?: ProjectPlanning
     {
       prompt,
       targetShotCount: settings?.targetShotCount ?? undefined,
+      defaultBeatDuration: settings?.defaultBeatDuration ?? undefined,
       aspectRatio: settings?.aspectRatio ?? undefined,
-      styleHint: settings?.styleHint ?? undefined
+      styleHint: settings?.styleHint ?? undefined,
+      narrativeMode: settings?.narrativeMode ?? undefined,
+      autoBeatDescriptions: settings?.autoBeatDescriptions ?? undefined
     }
   );
 

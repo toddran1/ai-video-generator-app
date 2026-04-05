@@ -15,8 +15,24 @@ export const localAssetService = {
     return path.join(env.ASSET_ROOT, "outputs", projectId);
   },
 
+  getProjectShotDirectory(projectId: string) {
+    return path.join(this.getProjectOutputDirectory(projectId), "shots");
+  },
+
   getShotClipPath(projectId: string, shotNumber: number) {
-    return path.join(this.getProjectTempDirectory(projectId), `shot-${shotNumber}.mp4`);
+    return path.join(this.getProjectShotDirectory(projectId), `shot-${shotNumber}.mp4`);
+  },
+
+  getShotClipUrl(projectId: string, shotNumber: number) {
+    return this.getPublicAssetUrl("outputs", projectId, "shots", `shot-${shotNumber}.mp4`);
+  },
+
+  getShotSegmentPath(projectId: string, shotNumber: number) {
+    return path.join(this.getProjectShotDirectory(projectId), `shot-${shotNumber}-segment.mp4`);
+  },
+
+  getShotSegmentUrl(projectId: string, shotNumber: number) {
+    return this.getPublicAssetUrl("outputs", projectId, "shots", `shot-${shotNumber}-segment.mp4`);
   },
 
   getFinalVideoPath(projectId: string) {
@@ -34,6 +50,7 @@ export const localAssetService = {
   async ensureProjectDirectories(projectId: string) {
     await fs.mkdir(this.getProjectTempDirectory(projectId), { recursive: true });
     await fs.mkdir(this.getProjectOutputDirectory(projectId), { recursive: true });
+    await fs.mkdir(this.getProjectShotDirectory(projectId), { recursive: true });
   },
 
   async cleanupProjectTempAssets(projectId: string) {

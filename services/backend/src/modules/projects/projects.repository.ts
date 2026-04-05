@@ -9,8 +9,20 @@ export interface ProjectRecord {
   status: string;
   output_url: string | null;
   target_shot_count: number | null;
+  default_beat_duration: number | null;
   aspect_ratio: string | null;
   style_hint: string | null;
+  narrative_mode: string | null;
+  auto_beat_descriptions: boolean;
+  kling_mode: string | null;
+  kling_cfg_scale: number | null;
+  kling_camera_control_type: string | null;
+  kling_camera_horizontal: number | null;
+  kling_camera_vertical: number | null;
+  kling_camera_pan: number | null;
+  kling_camera_tilt: number | null;
+  kling_camera_roll: number | null;
+  kling_camera_zoom: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -20,13 +32,45 @@ export async function createProject(params: {
   title: string;
   prompt: string;
   targetShotCount?: number | null;
+  defaultBeatDuration?: number | null;
   aspectRatio?: string | null;
   styleHint?: string | null;
+  narrativeMode?: string | null;
+  autoBeatDescriptions?: boolean | null;
+  klingMode?: string | null;
+  klingCfgScale?: number | null;
+  klingCameraControlType?: string | null;
+  klingCameraHorizontal?: number | null;
+  klingCameraVertical?: number | null;
+  klingCameraPan?: number | null;
+  klingCameraTilt?: number | null;
+  klingCameraRoll?: number | null;
+  klingCameraZoom?: number | null;
 }): Promise<ProjectRecord> {
   const result = await pool.query<ProjectRecord>(
     `
-      INSERT INTO projects (id, title, prompt, status, target_shot_count, aspect_ratio, style_hint)
-      VALUES ($1, $2, $3, 'draft', $4, $5, $6)
+      INSERT INTO projects (
+        id,
+        title,
+        prompt,
+        status,
+        target_shot_count,
+        default_beat_duration,
+        aspect_ratio,
+        style_hint,
+        narrative_mode,
+        auto_beat_descriptions,
+        kling_mode,
+        kling_cfg_scale,
+        kling_camera_control_type,
+        kling_camera_horizontal,
+        kling_camera_vertical,
+        kling_camera_pan,
+        kling_camera_tilt,
+        kling_camera_roll,
+        kling_camera_zoom
+      )
+      VALUES ($1, $2, $3, 'draft', $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
       RETURNING *
     `,
     [
@@ -34,8 +78,20 @@ export async function createProject(params: {
       params.title,
       params.prompt,
       params.targetShotCount ?? null,
+      params.defaultBeatDuration ?? null,
       params.aspectRatio ?? null,
-      params.styleHint ?? null
+      params.styleHint ?? null,
+      params.narrativeMode ?? null,
+      params.autoBeatDescriptions ?? true,
+      params.klingMode ?? null,
+      params.klingCfgScale ?? null,
+      params.klingCameraControlType ?? null,
+      params.klingCameraHorizontal ?? null,
+      params.klingCameraVertical ?? null,
+      params.klingCameraPan ?? null,
+      params.klingCameraTilt ?? null,
+      params.klingCameraRoll ?? null,
+      params.klingCameraZoom ?? null
     ]
   );
 
@@ -95,13 +151,42 @@ export async function updateProjectPlanningSettings(
     `
       UPDATE projects
       SET target_shot_count = $2,
-          aspect_ratio = $3,
-          style_hint = $4,
+          default_beat_duration = $3,
+          aspect_ratio = $4,
+          style_hint = $5,
+          narrative_mode = $6,
+          auto_beat_descriptions = COALESCE($7, auto_beat_descriptions),
+          kling_mode = $8,
+          kling_cfg_scale = $9,
+          kling_camera_control_type = $10,
+          kling_camera_horizontal = $11,
+          kling_camera_vertical = $12,
+          kling_camera_pan = $13,
+          kling_camera_tilt = $14,
+          kling_camera_roll = $15,
+          kling_camera_zoom = $16,
           updated_at = NOW()
       WHERE id = $1
       RETURNING *
     `,
-    [id, settings.targetShotCount ?? null, settings.aspectRatio ?? null, settings.styleHint ?? null]
+    [
+      id,
+      settings.targetShotCount ?? null,
+      settings.defaultBeatDuration ?? null,
+      settings.aspectRatio ?? null,
+      settings.styleHint ?? null,
+      settings.narrativeMode ?? null,
+      settings.autoBeatDescriptions ?? null,
+      settings.klingMode ?? null,
+      settings.klingCfgScale ?? null,
+      settings.klingCameraControlType ?? null,
+      settings.klingCameraHorizontal ?? null,
+      settings.klingCameraVertical ?? null,
+      settings.klingCameraPan ?? null,
+      settings.klingCameraTilt ?? null,
+      settings.klingCameraRoll ?? null,
+      settings.klingCameraZoom ?? null
+    ]
   );
 
   return result.rows[0] ?? null;
@@ -133,22 +218,48 @@ export async function replaceProjectShotPlans(projectId: string, shots: ShotPlan
           id,
           project_id,
           shot_number,
+          beat_label,
           description,
           duration_seconds,
+          generation_mode,
+          source_shot_number,
+          extend_prompt,
           negative_prompt,
-          camera_notes
+          camera_notes,
+          kling_mode,
+          kling_cfg_scale,
+          kling_camera_control_type,
+          kling_camera_horizontal,
+          kling_camera_vertical,
+          kling_camera_pan,
+          kling_camera_tilt,
+          kling_camera_roll,
+          kling_camera_zoom
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
         RETURNING *
       `,
       [
         uuidv4(),
         projectId,
         shot.shotNumber,
+        shot.beatLabel ?? null,
         shot.description,
         shot.durationSeconds,
+        shot.generationMode ?? null,
+        shot.sourceShotNumber ?? null,
+        shot.extendPrompt ?? null,
         shot.negativePrompt ?? null,
-        shot.cameraNotes ?? null
+        shot.cameraNotes ?? null,
+        shot.klingMode ?? null,
+        shot.klingCfgScale ?? null,
+        shot.klingCameraControlType ?? null,
+        shot.klingCameraHorizontal ?? null,
+        shot.klingCameraVertical ?? null,
+        shot.klingCameraPan ?? null,
+        shot.klingCameraTilt ?? null,
+        shot.klingCameraRoll ?? null,
+        shot.klingCameraZoom ?? null
       ]
     );
 

@@ -13,6 +13,10 @@ function runCommand(command: ffmpeg.FfmpegCommand): Promise<void> {
   });
 }
 
+function getSafeTrimDuration(totalDuration: number, startSeconds: number): number {
+  return Math.max(totalDuration - startSeconds, 0);
+}
+
 export async function createPlaceholderClip(
   outputPath: string,
   overlayText: string,
@@ -39,19 +43,59 @@ export async function createPlaceholderClip(
 export async function stitchClips(inputPaths: string[], outputPath: string): Promise<void> {
   await fs.mkdir(path.dirname(outputPath), { recursive: true });
 
-  const concatFile = path.join(path.dirname(outputPath), `concat-${Date.now()}.txt`);
-  const manifest = inputPaths.map((filePath) => `file '${filePath}'`).join("\n");
-  await fs.writeFile(concatFile, manifest, "utf8");
-
-  try {
-    await runCommand(
-      ffmpeg()
-        .input(concatFile)
-        .inputOptions(["-f concat", "-safe 0"])
-        .outputOptions(["-c copy"])
-        .save(outputPath)
-    );
-  } finally {
-    await fs.rm(concatFile, { force: true });
+  if (inputPaths.length === 0) {
+    throw new Error("Cannot stitch video because no input clips were provided");
   }
+
+  const command = ffmpeg();
+
+  for (const inputPath of inputPaths) {
+    command.input(inputPath);
+  }
+
+  const videoInputs = inputPaths.map((_, index) => `[${index}:v]`).join("");
+
+  await runCommand(
+    command
+      .complexFilter([
+        {
+          filter: "concat",
+          options: {
+            n: inputPaths.length,
+            v: 1,
+            a: 0
+          },
+          inputs: inputPaths.map((_, index) => `${index}:v`),
+          outputs: "stitched_video"
+        }
+      ])
+      .outputOptions(["-map [stitched_video]", "-c:v libx264", "-pix_fmt yuv420p", "-movflags +faststart"])
+      .save(outputPath)
+  );
+}
+
+export async function extractClipTail(
+  inputPath: string,
+  outputPath: string,
+  startSeconds: number,
+  totalDuration: number
+): Promise<void> {
+  await fs.mkdir(path.dirname(outputPath), { recursive: true });
+
+  const tailDuration = getSafeTrimDuration(totalDuration, startSeconds);
+
+  if (tailDuration <= 0.05) {
+    throw new Error(
+      `Unable to extract tail clip because total duration ${totalDuration}s does not exceed start time ${startSeconds}s`
+    );
+  }
+
+  await runCommand(
+    ffmpeg()
+      .input(inputPath)
+      .videoFilters(`trim=start=${startSeconds}:duration=${tailDuration},setpts=PTS-STARTPTS`)
+      .noAudio()
+      .outputOptions(["-c:v libx264", "-pix_fmt yuv420p", "-movflags +faststart"])
+      .save(outputPath)
+  );
 }

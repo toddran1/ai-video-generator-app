@@ -3,13 +3,18 @@ import crypto from "node:crypto";
 import axios from "axios";
 import { env } from "../../../config/env.js";
 import { HttpError } from "../../../lib/http-error.js";
-import type { GenerateVideoClipInput, GenerateVideoClipResult } from "./video-provider.types.js";
+import type {
+  ExtendVideoClipInput,
+  GenerateVideoClipInput,
+  GenerateVideoClipResult
+} from "./video-provider.types.js";
 
 interface KlingTaskResult {
   url?: string;
   video_url?: string;
   videoUrl?: string;
   videos?: Array<{
+    id?: string;
     url?: string;
     video_url?: string;
     videoUrl?: string;
@@ -149,6 +154,10 @@ function extractVideoUrl(payload: KlingEnvelope<KlingStatusData>): string | null
   );
 }
 
+function extractVideoId(payload: KlingEnvelope<KlingStatusData>): string | null {
+  return payload.data?.task_result?.videos?.[0]?.id ?? null;
+}
+
 async function wait(milliseconds: number): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
@@ -159,9 +168,22 @@ async function ensureNotCanceled(input: GenerateVideoClipInput): Promise<void> {
   }
 }
 
+function isTransientPollError(error: unknown): boolean {
+  if (!axios.isAxiosError(error)) {
+    return false;
+  }
+
+  if (error.response) {
+    return false;
+  }
+
+  return ["ECONNRESET", "ETIMEDOUT", "ECONNABORTED", "EAI_AGAIN", "ENOTFOUND"].includes(error.code ?? "");
+}
+
 async function pollKlingTask(taskId: string, input: GenerateVideoClipInput): Promise<{
   status: string;
   videoUrl: string | null;
+  videoId: string | null;
   providerRequestId?: string;
   providerUnitsConsumed?: string;
   providerTerminalPayload?: string;
@@ -169,6 +191,7 @@ async function pollKlingTask(taskId: string, input: GenerateVideoClipInput): Pro
   const startedAt = Date.now();
   let lastStatus = "";
   let lastPayload: KlingEnvelope<KlingStatusData> | null = null;
+  let transientFailureCount = 0;
 
   while (Date.now() - startedAt < env.KLING_TIMEOUT_MS) {
     await ensureNotCanceled(input);
@@ -188,8 +211,18 @@ async function pollKlingTask(taskId: string, input: GenerateVideoClipInput): Pro
           `[kling] poll error task=${taskId} status=${error.response?.status ?? "network"} body=${stringifyPayload(error.response?.data)}`
         );
       }
+      if (axios.isAxiosError(error) && isTransientPollError(error) && transientFailureCount < env.KLING_POLL_TRANSIENT_RETRY_LIMIT) {
+        transientFailureCount += 1;
+        console.warn(
+          `[kling] transient poll failure task=${taskId} code=${error.code ?? "unknown"} retry=${transientFailureCount}/${env.KLING_POLL_TRANSIENT_RETRY_LIMIT}`
+        );
+        await wait(Math.min(env.KLING_POLL_INTERVAL_MS, 3000));
+        continue;
+      }
       throw error;
     }
+
+    transientFailureCount = 0;
 
     lastPayload = response.data;
 
@@ -200,6 +233,7 @@ async function pollKlingTask(taskId: string, input: GenerateVideoClipInput): Pro
 
     const status = extractStatus(response.data).toLowerCase();
     const videoUrl = extractVideoUrl(response.data);
+    const videoId = extractVideoId(response.data);
 
     if (status && status !== lastStatus) {
       lastStatus = status;
@@ -215,6 +249,7 @@ async function pollKlingTask(taskId: string, input: GenerateVideoClipInput): Pro
       return {
         status,
         videoUrl,
+        videoId,
         providerRequestId: response.data.request_id ?? response.data.requestId,
         providerUnitsConsumed: response.data.data?.final_unit_deduction,
         providerTerminalPayload: stringifyPayload(response.data)
@@ -245,7 +280,10 @@ export async function generateKlingVideoClip(
         prompt: input.prompt,
         duration: input.durationSeconds ?? env.KLING_DURATION_SECONDS,
         aspect_ratio: input.aspectRatio ?? env.KLING_ASPECT_RATIO,
-        negative_prompt: input.negativePrompt ?? env.KLING_NEGATIVE_PROMPT ?? undefined
+        negative_prompt: input.negativePrompt ?? env.KLING_NEGATIVE_PROMPT ?? undefined,
+        mode: input.mode ?? env.KLING_MODE ?? undefined,
+        cfg_scale: input.cfgScale ?? undefined,
+        camera_control: input.cameraControl ?? undefined
       })}`
     );
     await ensureNotCanceled(input);
@@ -265,12 +303,16 @@ export async function generateKlingVideoClip(
       provider: "kling",
       providerTaskId: existingTaskId,
       providerRequestId: taskResult.providerRequestId,
+      providerOutputId: taskResult.videoId ?? undefined,
       providerRequestPayload: stringifyPayload({
         model: input.model ?? env.KLING_MODEL,
         prompt: input.prompt,
         duration: input.durationSeconds ?? env.KLING_DURATION_SECONDS,
         aspect_ratio: input.aspectRatio ?? env.KLING_ASPECT_RATIO,
-        negative_prompt: input.negativePrompt ?? env.KLING_NEGATIVE_PROMPT ?? undefined
+        negative_prompt: input.negativePrompt ?? env.KLING_NEGATIVE_PROMPT ?? undefined,
+        mode: input.mode ?? env.KLING_MODE ?? undefined,
+        cfg_scale: input.cfgScale ?? undefined,
+        camera_control: input.cameraControl ?? undefined
       }),
       providerUnitsConsumed: taskResult.providerUnitsConsumed,
       providerTerminalPayload: taskResult.providerTerminalPayload,
@@ -285,7 +327,9 @@ export async function generateKlingVideoClip(
     duration: input.durationSeconds ?? env.KLING_DURATION_SECONDS,
     aspect_ratio: input.aspectRatio ?? env.KLING_ASPECT_RATIO,
     negative_prompt: input.negativePrompt ?? env.KLING_NEGATIVE_PROMPT ?? undefined,
-    ...(env.KLING_MODE ? { mode: env.KLING_MODE } : {})
+    ...(input.mode ?? env.KLING_MODE ? { mode: input.mode ?? env.KLING_MODE } : {}),
+    ...(input.cfgScale !== undefined ? { cfg_scale: input.cfgScale } : {}),
+    ...(input.cameraControl ? { camera_control: input.cameraControl } : {})
   };
   const requestPayload = stringifyPayload(requestBody);
 
@@ -346,6 +390,112 @@ export async function generateKlingVideoClip(
     provider: "kling",
     providerTaskId: taskId,
     providerRequestId: taskResult.providerRequestId,
+    providerOutputId: taskResult.videoId ?? undefined,
+    providerRequestPayload: requestPayload,
+    providerUnitsConsumed: taskResult.providerUnitsConsumed,
+    providerTerminalPayload: taskResult.providerTerminalPayload,
+    outputPath: input.outputPath
+  };
+}
+
+export async function extendKlingVideoClip(
+  input: ExtendVideoClipInput
+): Promise<GenerateVideoClipResult> {
+  const existingTaskId = input.providerTaskId?.trim();
+  if (existingTaskId) {
+    await ensureNotCanceled(input);
+    const taskResult = await pollKlingTask(existingTaskId, input as GenerateVideoClipInput);
+
+    if (!taskResult.videoUrl) {
+      throw new HttpError(502, `Kling extend task ${existingTaskId} completed without a downloadable video URL`);
+    }
+
+    const videoResponse = await axios.get<ArrayBuffer>(taskResult.videoUrl, {
+      responseType: "arraybuffer"
+    });
+
+    await fs.writeFile(input.outputPath, Buffer.from(videoResponse.data));
+
+    return {
+      provider: "kling",
+      providerTaskId: existingTaskId,
+      providerRequestId: taskResult.providerRequestId,
+      providerOutputId: taskResult.videoId ?? undefined,
+      providerRequestPayload: stringifyPayload({
+        video_id: input.videoId,
+        prompt: input.prompt
+      }),
+      providerUnitsConsumed: taskResult.providerUnitsConsumed,
+      providerTerminalPayload: taskResult.providerTerminalPayload,
+      outputPath: input.outputPath
+    };
+  }
+
+  await ensureNotCanceled(input as GenerateVideoClipInput);
+  const requestBody = {
+    video_id: input.videoId,
+    prompt: input.prompt
+  };
+  const requestPayload = stringifyPayload(requestBody);
+
+  let response;
+  try {
+    response = await axios.post<KlingEnvelope<KlingSubmitData>>(
+      `${env.KLING_API_BASE_URL}/v1/videos/video-extend`,
+      requestBody,
+      {
+        headers: {
+          Authorization: getKlingAuthHeader(),
+          "Content-Type": "application/json"
+        }
+      }
+    );
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      console.error(
+        `[kling] extend submit error status=${error.response?.status ?? "network"} body=${stringifyPayload(error.response?.data)}`
+      );
+    }
+    throw error;
+  }
+
+  console.log(`[kling] extend request payload=${requestPayload}`);
+  console.log(`[kling] extend response payload=${stringifyPayload(response.data)}`);
+
+  const apiError = getKlingErrorMessage(response.data);
+  if (apiError) {
+    throw new HttpError(502, apiError);
+  }
+
+  const taskId = extractTaskId(response.data);
+
+  if (!taskId) {
+    throw new HttpError(502, "Kling extend response did not include a task ID");
+  }
+
+  await input.onProviderTaskCreated?.({
+    providerTaskId: taskId,
+    providerRequestId: response.data.request_id ?? response.data.requestId,
+    providerRequestPayload: requestPayload
+  });
+
+  const taskResult = await pollKlingTask(taskId, input as GenerateVideoClipInput);
+
+  if (!taskResult.videoUrl) {
+    throw new HttpError(502, `Kling extend task ${taskId} completed without a downloadable video URL`);
+  }
+
+  const videoResponse = await axios.get<ArrayBuffer>(taskResult.videoUrl, {
+    responseType: "arraybuffer"
+  });
+
+  await fs.writeFile(input.outputPath, Buffer.from(videoResponse.data));
+
+  return {
+    provider: "kling",
+    providerTaskId: taskId,
+    providerRequestId: taskResult.providerRequestId,
+    providerOutputId: taskResult.videoId ?? undefined,
     providerRequestPayload: requestPayload,
     providerUnitsConsumed: taskResult.providerUnitsConsumed,
     providerTerminalPayload: taskResult.providerTerminalPayload,

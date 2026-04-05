@@ -56,6 +56,17 @@ This repository contains an MVP pipeline for prompt-to-video generation with:
 - Normalize model metadata, cost hints, and capabilities across providers
 - Add better provider-side cancel support when official APIs allow it
 
+### Milestone 2A: Kling Endpoint Expansion
+
+- Finish the `video-extend` path so multi-shot story projects can preserve continuity between clips
+- Add `lip-sync` support for dialogue scenes, narration, and spoken-character workflows
+- Add `image2video` for reference-first generation flows
+- Add `multi-image2video` for stronger subject and scene consistency across clips
+- Add `effects` support for provider-native stylized transitions or effect shots
+- Add `text-to-audio` and `video-to-audio` as optional post-production building blocks
+- Add provider capability metadata for each Kling endpoint so the UI can enforce valid inputs
+- Persist endpoint-specific provider request and response payloads for debugging and auditability
+
 ### Milestone 3: Storage and Reliability
 
 - Move assets and metadata archives from local storage to S3-compatible storage
@@ -119,6 +130,7 @@ http://localhost:3000
 - `GET /projects`: list all projects
 - `GET /projects/:projectId`: fetch one project
 - `POST /generate`: queue a generation job for a project
+- `GET /generate/provider-config`: fetch active provider capability limits for the UI
 - `GET /generate/jobs/:jobId`: fetch one generation job with persisted shots
 - `POST /generate/jobs/:jobId/retry`: retry or resume a failed/incomplete job
 - `POST /generate/jobs/:jobId/shots/:shotNumber/retry`: retry generation starting from a specific shot
@@ -154,6 +166,8 @@ KLING_DURATION_SECONDS=5
 KLING_TEST_DURATION_SECONDS=5
 KLING_PRODUCTION_DURATION_SECONDS=5
 KLING_ASPECT_RATIO=16:9
+KLING_SUPPORTED_DURATIONS=5,10
+KLING_SUPPORTED_ASPECT_RATIOS=16:9,9:16,1:1
 KLING_MODE=
 ```
 
@@ -162,9 +176,67 @@ Notes:
 - The current implementation supports Kling access-key / secret-key JWT auth.
 - `testing` is intended for cheaper iteration and currently defaults to `kling-v2.6-std`.
 - `production` is intended for higher-quality runs and currently defaults to `kling-v2.6-pro`.
+- Current Kling text-to-video limits are enforced in the UI and worker using provider config:
+  - durations: `5`, `10`
+  - aspect ratios: `16:9`, `9:16`, `1:1`
 - The adapter submits `POST /v1/videos/text2video` and polls `GET /v1/videos/text2video/{task_id}`.
 - The terminal success state returned by Kling is `succeed`.
 - Local shot cancel stops our worker-side polling and processing. It does not guarantee provider-side cancellation because an official public cancel endpoint was not confirmed in the accessible docs.
+
+## Extend Shot Workflow
+
+A draft design for continuous multi-shot storytelling using Kling's `extend` endpoint lives in:
+
+- [docs/extend-shot-workflow.md](/Users/reginaldrandolph/Documents/coding%20projects/python/ai-video-generator/docs/extend-shot-workflow.md)
+
+## Kling Endpoint Surface
+
+Based on the current Kling-owned ComfyUI integration repo, the following endpoint families are available in the latest wrapper code:
+
+### Video
+
+- `POST /v1/videos/text2video`
+- `GET /v1/videos/text2video/{task_id}`
+- `POST /v1/videos/image2video`
+- `GET /v1/videos/image2video/{task_id}`
+- `POST /v1/videos/video-extend`
+- `GET /v1/videos/video-extend/{task_id}`
+- `POST /v1/videos/lip-sync`
+- `GET /v1/videos/lip-sync/{task_id}`
+- `POST /v1/videos/effects`
+- `GET /v1/videos/effects/{task_id}`
+- `POST /v1/videos/multi-elements`
+- `GET /v1/videos/multi-elements/{task_id}`
+- `POST /v1/videos/multi-image2video`
+- `GET /v1/videos/multi-image2video/{task_id}`
+
+### Image
+
+- `POST /v1/images/generations`
+- `GET /v1/images/generations/{task_id}`
+- `POST /v1/images/editing/expand`
+- `GET /v1/images/editing/expand/{task_id}`
+- `POST /v1/images/kolors-virtual-try-on`
+- `GET /v1/images/kolors-virtual-try-on/{task_id}`
+
+### Audio
+
+- `POST /v1/audio/text-to-audio`
+- `GET /v1/audio/text-to-audio/{task_id}`
+- `POST /v1/audio/video-to-audio`
+- `GET /v1/audio/video-to-audio/{task_id}`
+
+Notes:
+
+- The shared polling helper in the Kling-owned repo appends `/{task_id}` to each query path.
+- We have already confirmed live that `video-extend` is the real path, while the simpler `/v1/videos/extend` doc reference was stale for our account.
+- The public Qingque docs may contain newer or more detailed API information, but the accessible page content is partially hidden behind the app shell in this environment, so the Kling-owned repo remains the most actionable implementation reference for now.
+
+References:
+
+- [KlingAIResearch/ComfyUI-KLingAI-API](https://github.com/KlingAIResearch/ComfyUI-KLingAI-API)
+- [Kling-owned prediction helper](https://github.com/KlingAIResearch/ComfyUI-KLingAI-API/blob/main/py/api/prediction.py)
+- [Qingque Kling API docs](https://docs.qingque.cn/d/home/eZQArO-0RpjbQMpf5DPa-w8Rp?identityId=1oEER8VjdS8)
 
 ## Example Requests
 
