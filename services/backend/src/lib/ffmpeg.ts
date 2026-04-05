@@ -93,7 +93,8 @@ export async function extractClipTail(
   await runCommand(
     ffmpeg()
       .input(inputPath)
-      .videoFilters(`trim=start=${startSeconds}:duration=${tailDuration},setpts=PTS-STARTPTS`)
+      .setStartTime(startSeconds)
+      .duration(tailDuration)
       .noAudio()
       .outputOptions(["-c:v libx264", "-pix_fmt yuv420p", "-movflags +faststart"])
       .save(outputPath)

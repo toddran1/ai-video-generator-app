@@ -26,6 +26,7 @@ export interface ProjectPlanningSettings {
   styleHint?: string | null;
   narrativeMode?: string | null;
   autoBeatDescriptions?: boolean | null;
+  klingModel?: string | null;
   klingMode?: string | null;
   klingCfgScale?: number | null;
   klingCameraControlType?: string | null;

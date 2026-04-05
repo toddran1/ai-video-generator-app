@@ -14,6 +14,7 @@ export interface ProjectRecord {
   style_hint: string | null;
   narrative_mode: string | null;
   auto_beat_descriptions: boolean;
+  kling_model: string | null;
   kling_mode: string | null;
   kling_cfg_scale: number | null;
   kling_camera_control_type: string | null;
@@ -37,6 +38,7 @@ export async function createProject(params: {
   styleHint?: string | null;
   narrativeMode?: string | null;
   autoBeatDescriptions?: boolean | null;
+  klingModel?: string | null;
   klingMode?: string | null;
   klingCfgScale?: number | null;
   klingCameraControlType?: string | null;
@@ -60,6 +62,7 @@ export async function createProject(params: {
         style_hint,
         narrative_mode,
         auto_beat_descriptions,
+        kling_model,
         kling_mode,
         kling_cfg_scale,
         kling_camera_control_type,
@@ -70,7 +73,7 @@ export async function createProject(params: {
         kling_camera_roll,
         kling_camera_zoom
       )
-      VALUES ($1, $2, $3, 'draft', $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+      VALUES ($1, $2, $3, 'draft', $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
       RETURNING *
     `,
     [
@@ -83,6 +86,7 @@ export async function createProject(params: {
       params.styleHint ?? null,
       params.narrativeMode ?? null,
       params.autoBeatDescriptions ?? true,
+      params.klingModel ?? null,
       params.klingMode ?? null,
       params.klingCfgScale ?? null,
       params.klingCameraControlType ?? null,
@@ -156,15 +160,16 @@ export async function updateProjectPlanningSettings(
           style_hint = $5,
           narrative_mode = $6,
           auto_beat_descriptions = COALESCE($7, auto_beat_descriptions),
-          kling_mode = $8,
-          kling_cfg_scale = $9,
-          kling_camera_control_type = $10,
-          kling_camera_horizontal = $11,
-          kling_camera_vertical = $12,
-          kling_camera_pan = $13,
-          kling_camera_tilt = $14,
-          kling_camera_roll = $15,
-          kling_camera_zoom = $16,
+          kling_model = $8,
+          kling_mode = $9,
+          kling_cfg_scale = $10,
+          kling_camera_control_type = $11,
+          kling_camera_horizontal = $12,
+          kling_camera_vertical = $13,
+          kling_camera_pan = $14,
+          kling_camera_tilt = $15,
+          kling_camera_roll = $16,
+          kling_camera_zoom = $17,
           updated_at = NOW()
       WHERE id = $1
       RETURNING *
@@ -177,6 +182,7 @@ export async function updateProjectPlanningSettings(
       settings.styleHint ?? null,
       settings.narrativeMode ?? null,
       settings.autoBeatDescriptions ?? null,
+      settings.klingModel ?? null,
       settings.klingMode ?? null,
       settings.klingCfgScale ?? null,
       settings.klingCameraControlType ?? null,

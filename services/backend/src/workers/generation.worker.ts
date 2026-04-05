@@ -106,6 +106,24 @@ function extractOutputVideoDuration(providerTerminalPayload?: string | null): nu
   }
 }
 
+function buildSimpleKlingCameraConfig(
+  entries: Array<[string, number | null | undefined]>,
+  allowedAxes: Set<string>
+): Record<string, number> | undefined {
+  const candidates = entries
+    .filter(([axis, value]) => allowedAxes.has(axis) && typeof value === "number" && Number.isFinite(value) && value !== 0)
+    .sort(([, left], [, right]) => Math.abs((right as number) ?? 0) - Math.abs((left as number) ?? 0));
+
+  const selected = candidates[0];
+
+  if (!selected) {
+    return undefined;
+  }
+
+  const [axis, value] = selected;
+  return { [axis]: value as number };
+}
+
 function buildKlingCameraControl(project: Awaited<ReturnType<typeof getProjectById>>) {
   const type = project?.kling_camera_control_type?.trim();
   const allowedTypes = new Set(["simple", "down_back", "forward_up", "right_turn_forward", "left_turn_forward"]);
@@ -118,36 +136,19 @@ function buildKlingCameraControl(project: Awaited<ReturnType<typeof getProjectBy
   if (type !== "simple") {
     return { type };
   }
-  const config = {
-    ...(project?.kling_camera_horizontal !== null && project?.kling_camera_horizontal !== undefined
-      ? { horizontal: project.kling_camera_horizontal }
-      : {}),
-    ...(project?.kling_camera_vertical !== null && project?.kling_camera_vertical !== undefined
-      ? { vertical: project.kling_camera_vertical }
-      : {}),
-    ...(project?.kling_camera_pan !== null && project?.kling_camera_pan !== undefined
-      ? { pan: project.kling_camera_pan }
-      : {}),
-    ...(project?.kling_camera_tilt !== null && project?.kling_camera_tilt !== undefined
-      ? { tilt: project.kling_camera_tilt }
-      : {}),
-    ...(project?.kling_camera_roll !== null && project?.kling_camera_roll !== undefined
-      ? { roll: project.kling_camera_roll }
-      : {}),
-    ...(project?.kling_camera_zoom !== null && project?.kling_camera_zoom !== undefined
-      ? { zoom: project.kling_camera_zoom }
-      : {})
-  };
+  const validConfig = buildSimpleKlingCameraConfig(
+    [
+      ["horizontal", project?.kling_camera_horizontal],
+      ["vertical", project?.kling_camera_vertical],
+      ["pan", project?.kling_camera_pan],
+      ["tilt", project?.kling_camera_tilt],
+      ["roll", project?.kling_camera_roll],
+      ["zoom", project?.kling_camera_zoom]
+    ],
+    allowedAxes
+  );
 
-  const validConfig = Object.entries(config).reduce<Record<string, number>>((accumulator, [axis, value]) => {
-    if (allowedAxes.has(axis) && typeof value === "number" && Number.isFinite(value)) {
-      accumulator[axis] = value;
-    }
-
-    return accumulator;
-  }, {});
-
-  if (Object.keys(validConfig).length === 0) {
+  if (!validConfig) {
     return undefined;
   }
 
@@ -185,36 +186,19 @@ function buildShotLevelKlingCameraControl(shot: {
     return { type };
   }
 
-  const config = {
-    ...((shot.kling_camera_horizontal ?? shot.klingCameraHorizontal) !== null &&
-    (shot.kling_camera_horizontal ?? shot.klingCameraHorizontal) !== undefined
-      ? { horizontal: shot.kling_camera_horizontal ?? shot.klingCameraHorizontal }
-      : {}),
-    ...((shot.kling_camera_vertical ?? shot.klingCameraVertical) !== null &&
-    (shot.kling_camera_vertical ?? shot.klingCameraVertical) !== undefined
-      ? { vertical: shot.kling_camera_vertical ?? shot.klingCameraVertical }
-      : {}),
-    ...((shot.kling_camera_pan ?? shot.klingCameraPan) !== null &&
-    (shot.kling_camera_pan ?? shot.klingCameraPan) !== undefined
-      ? { pan: shot.kling_camera_pan ?? shot.klingCameraPan }
-      : {}),
-    ...((shot.kling_camera_tilt ?? shot.klingCameraTilt) !== null &&
-    (shot.kling_camera_tilt ?? shot.klingCameraTilt) !== undefined
-      ? { tilt: shot.kling_camera_tilt ?? shot.klingCameraTilt }
-      : {}),
-    ...((shot.kling_camera_roll ?? shot.klingCameraRoll) !== null &&
-    (shot.kling_camera_roll ?? shot.klingCameraRoll) !== undefined
-      ? { roll: shot.kling_camera_roll ?? shot.klingCameraRoll }
-      : {}),
-    ...((shot.kling_camera_zoom ?? shot.klingCameraZoom) !== null &&
-    (shot.kling_camera_zoom ?? shot.klingCameraZoom) !== undefined
-      ? { zoom: shot.kling_camera_zoom ?? shot.klingCameraZoom }
-      : {})
-  };
+  const validConfig = buildSimpleKlingCameraConfig(
+    [
+      ["horizontal", shot.kling_camera_horizontal ?? shot.klingCameraHorizontal],
+      ["vertical", shot.kling_camera_vertical ?? shot.klingCameraVertical],
+      ["pan", shot.kling_camera_pan ?? shot.klingCameraPan],
+      ["tilt", shot.kling_camera_tilt ?? shot.klingCameraTilt],
+      ["roll", shot.kling_camera_roll ?? shot.klingCameraRoll],
+      ["zoom", shot.kling_camera_zoom ?? shot.klingCameraZoom]
+    ],
+    allowedAxes
+  );
 
-  const validConfig = Object.fromEntries(Object.entries(config).filter(([axis]) => allowedAxes.has(axis)));
-
-  if (Object.keys(validConfig).length === 0) {
+  if (!validConfig) {
     return undefined;
   }
 
@@ -277,9 +261,7 @@ async function processGenerationJob(payload: GenerationJobPayload): Promise<void
     throw new Error(`Generation job ${payload.jobId} not found`);
   }
 
-  const executionConfig = resolveProviderExecutionConfig(
-    (jobRecord.generation_profile as "testing" | "production" | undefined) ?? "testing"
-  );
+  const executionConfig = resolveProviderExecutionConfig(jobRecord.provider_model ?? project.kling_model);
 
   const planningSettings = {
     targetShotCount: project.target_shot_count,

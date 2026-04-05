@@ -15,7 +15,7 @@ import {
   resetGenerationJobForRetry
 } from "./generate.repository.js";
 import { getVideoProviderCapabilities } from "./provider-capabilities.service.js";
-import { resolveProviderExecutionConfig, type GenerationProfile } from "./generation-profile.service.js";
+import { resolveProviderExecutionConfig } from "./generation-profile.service.js";
 
 async function queueGenerationJob(params: { jobId: string; projectId: string }) {
   const existingQueueJob = await generationQueue.getJob(params.jobId);
@@ -36,7 +36,7 @@ async function queueGenerationJob(params: { jobId: string; projectId: string }) 
   );
 }
 
-export async function enqueueGeneration(projectId: string, profile: GenerationProfile) {
+export async function enqueueGeneration(projectId: string) {
   const project = await getProjectById(projectId);
 
   if (!project) {
@@ -44,7 +44,7 @@ export async function enqueueGeneration(projectId: string, profile: GenerationPr
   }
 
   const jobId = uuidv4();
-  const executionConfig = resolveProviderExecutionConfig(profile);
+  const executionConfig = resolveProviderExecutionConfig(project.kling_model);
 
   await createGenerationJob({
     id: jobId,

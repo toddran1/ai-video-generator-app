@@ -10,6 +10,7 @@ export interface Project {
   style_hint: string | null;
   narrative_mode: string | null;
   auto_beat_descriptions: boolean;
+  kling_model: string | null;
   kling_mode: string | null;
   kling_cfg_scale: number | null;
   kling_camera_control_type: string | null;
@@ -30,6 +31,7 @@ export interface ProjectPlanningSettings {
   styleHint?: string | null;
   narrativeMode?: "3-beat-story" | "5-beat-story" | "fight-scene" | "dialogue-scene" | "reveal-arc" | null;
   autoBeatDescriptions?: boolean | null;
+  klingModel?: string | null;
   klingMode?: string | null;
   klingCfgScale?: number | null;
   klingCameraControlType?: "simple" | "down_back" | "forward_up" | "right_turn_forward" | "left_turn_forward" | null;
@@ -70,6 +72,13 @@ export interface VideoProviderConfig {
   provider: string;
   durations: number[];
   aspectRatios: string[];
+  defaultModel: string | null;
+  models: Array<{
+    id: string;
+    label: string;
+    supportsCameraControl: boolean;
+    estimatedUnitsPerShot: number;
+  }>;
 }
 
 export interface GenerationJob {

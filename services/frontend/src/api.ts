@@ -145,10 +145,10 @@ export async function updateProjectShotPlan(projectId: string, shots: ProjectSho
   });
 }
 
-export async function generateProject(projectId: string, profile: "testing" | "production") {
+export async function generateProject(projectId: string) {
   return request<ApiResponse<{ id: string; status: string; projectId: string }>>("/generate", {
     method: "POST",
-    body: JSON.stringify({ projectId, profile })
+    body: JSON.stringify({ projectId })
   });
 }
 

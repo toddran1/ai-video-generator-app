@@ -7,6 +7,7 @@ const projectPlanningSettingsSchema = z.object({
   styleHint: z.string().max(500).optional().nullable(),
   narrativeMode: z.enum(["3-beat-story", "5-beat-story", "fight-scene", "dialogue-scene", "reveal-arc"]).optional().nullable(),
   autoBeatDescriptions: z.coerce.boolean().optional().nullable(),
+  klingModel: z.string().max(100).optional().nullable(),
   klingMode: z.enum(["std", "pro"]).optional().nullable(),
   klingCfgScale: z.coerce.number().min(0).max(1).optional().nullable(),
   klingCameraControlType: z
@@ -30,6 +31,7 @@ export const createProjectSchema = z.object({
   styleHint: projectPlanningSettingsSchema.shape.styleHint,
   narrativeMode: projectPlanningSettingsSchema.shape.narrativeMode,
   autoBeatDescriptions: projectPlanningSettingsSchema.shape.autoBeatDescriptions,
+  klingModel: projectPlanningSettingsSchema.shape.klingModel,
   klingMode: projectPlanningSettingsSchema.shape.klingMode,
   klingCfgScale: projectPlanningSettingsSchema.shape.klingCfgScale,
   klingCameraControlType: projectPlanningSettingsSchema.shape.klingCameraControlType,

@@ -54,11 +54,12 @@ const envSchema = z.object({
   KLING_ACCESS_KEY: z.string().optional(),
   KLING_SECRET_KEY: z.string().optional(),
   KLING_MODEL: z.string().default("kling-v2.6-std"),
-  KLING_TEST_MODEL: z.string().default("kling-v2.6-std"),
-  KLING_PRODUCTION_MODEL: z.string().default("kling-v2.6-pro"),
+  KLING_SUPPORTED_MODELS: z
+    .string()
+    .default(
+      "kling-v2.6-std,kling-v2.6-pro,kling-v2.5-turbo,kling-video-o1,kling-video-3.0,kling-video-3.0-omni,kling-3.0-omni,kling-video-o3"
+    ),
   KLING_DURATION_SECONDS: z.coerce.number().default(5),
-  KLING_TEST_DURATION_SECONDS: z.coerce.number().default(5),
-  KLING_PRODUCTION_DURATION_SECONDS: z.coerce.number().default(5),
   KLING_ASPECT_RATIO: z.string().default("16:9"),
   KLING_SUPPORTED_DURATIONS: z.string().default("5,10"),
   KLING_SUPPORTED_ASPECT_RATIOS: z.string().default("16:9,9:16,1:1"),
@@ -76,6 +77,16 @@ export const env = {
   KLING_SUPPORTED_DURATION_VALUES: parseCsvValues(parsedEnv.KLING_SUPPORTED_DURATIONS, ["5", "10"])
     .map((value) => Number(value))
     .filter((value) => Number.isFinite(value)),
+  KLING_SUPPORTED_MODEL_VALUES: parseCsvValues(parsedEnv.KLING_SUPPORTED_MODELS, [
+    "kling-v2.6-std",
+    "kling-v2.6-pro",
+    "kling-v2.5-turbo",
+    "kling-video-o1",
+    "kling-video-3.0",
+    "kling-video-3.0-omni",
+    "kling-3.0-omni",
+    "kling-video-o3"
+  ]),
   KLING_SUPPORTED_ASPECT_RATIO_VALUES: parseCsvValues(parsedEnv.KLING_SUPPORTED_ASPECT_RATIOS, [
     "16:9",
     "9:16",

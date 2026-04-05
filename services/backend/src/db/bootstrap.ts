@@ -22,6 +22,7 @@ export async function bootstrapDatabase(): Promise<void> {
           style_hint TEXT,
           narrative_mode TEXT,
           auto_beat_descriptions BOOLEAN NOT NULL DEFAULT TRUE,
+          kling_model TEXT,
           kling_mode TEXT,
           kling_cfg_scale DOUBLE PRECISION,
           kling_camera_control_type TEXT,
@@ -65,6 +66,11 @@ export async function bootstrapDatabase(): Promise<void> {
       await pool.query(`
         ALTER TABLE projects
         ADD COLUMN IF NOT EXISTS kling_mode TEXT
+      `);
+
+      await pool.query(`
+        ALTER TABLE projects
+        ADD COLUMN IF NOT EXISTS kling_model TEXT
       `);
 
       await pool.query(`

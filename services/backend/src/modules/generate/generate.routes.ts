@@ -65,7 +65,7 @@ generateRouter.post(
   "/",
   asyncHandler(async (req, res) => {
     const input = generateVideoSchema.parse(req.body);
-    const job = await enqueueGeneration(input.projectId, input.profile);
+    const job = await enqueueGeneration(input.projectId);
     res.status(202).json({ data: job });
   })
 );
