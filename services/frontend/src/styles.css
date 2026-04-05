@@ -150,6 +150,17 @@ a {
 
 .panel {
   padding: 1.5rem;
+  position: relative;
+  z-index: 1;
+}
+
+.panel-form {
+  overflow: visible;
+}
+
+.panel-form:has(.help-tooltip:hover),
+.panel-form:has(.help-tooltip:focus-within) {
+  z-index: 90;
 }
 
 .panel-header h2 {
@@ -174,6 +185,12 @@ a {
   color: rgba(245, 239, 226, 0.82);
 }
 
+.label-with-help {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
 .project-form input,
 .project-form textarea,
 .project-form select,
@@ -192,6 +209,10 @@ a {
 .project-settings-grid select {
   color-scheme: dark;
   background-color: rgba(24, 34, 43, 0.96);
+}
+
+.model-select {
+  padding-block: 0.82rem !important;
 }
 
 .project-form select option,
@@ -258,6 +279,46 @@ a {
 .advanced-panel-header {
   display: grid;
   gap: 0.35rem;
+}
+
+.advanced-accordion {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.advanced-accordion-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  width: 100%;
+  padding: 0.95rem 1rem;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  color: inherit;
+  text-align: left;
+}
+
+.advanced-accordion-trigger:hover {
+  border-color: rgba(208, 138, 75, 0.35);
+}
+
+.advanced-accordion-body {
+  margin-top: -0.15rem;
+}
+
+.advanced-caret {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  color: rgba(245, 239, 226, 0.78);
+  transition: transform 160ms ease;
+}
+
+.advanced-caret.is-open {
+  transform: rotate(180deg);
 }
 
 .slider-label {
@@ -841,6 +902,76 @@ a {
 .project-card-caption {
   margin: 0 0 1rem;
   color: rgba(245, 239, 226, 0.58);
+}
+
+.help-tooltip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  outline: none;
+  z-index: 1;
+}
+
+.help-tooltip-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 999px;
+  border: 1px solid rgba(240, 197, 143, 0.42);
+  color: #f0c58f;
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: help;
+}
+
+.help-tooltip-bubble {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 0.18rem);
+  z-index: 30;
+  width: max-content;
+  max-width: min(18rem, 60vw);
+  padding: 0.6rem 0.75rem;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(18, 22, 27, 0.98);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.28);
+  color: rgba(245, 239, 226, 0.88);
+  font-size: 0.78rem;
+  line-height: 1.45;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(-4px);
+  transition: opacity 120ms ease, transform 120ms ease, visibility 120ms ease;
+}
+
+.help-tooltip-bubble::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -0.3rem;
+  height: 0.3rem;
+}
+
+.help-tooltip-trigger:hover + .help-tooltip-bubble,
+.help-tooltip-bubble:hover,
+.help-tooltip:focus-within .help-tooltip-bubble {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+.help-tooltip:has(.help-tooltip-trigger:hover),
+.help-tooltip:has(.help-tooltip-bubble:hover),
+.help-tooltip:focus-within {
+  z-index: 80;
 }
 
 .shot-pill-row {

@@ -1,3 +1,4 @@
+import { env } from "../config/env.js";
 import { pool } from "./pool.js";
 
 async function sleep(milliseconds: number): Promise<void> {
@@ -73,6 +74,15 @@ export async function bootstrapDatabase(): Promise<void> {
         ADD COLUMN IF NOT EXISTS kling_model TEXT
       `);
 
+      await pool.query(
+        `
+          UPDATE projects
+          SET kling_model = $1
+          WHERE kling_model IS NULL
+        `,
+        [env.KLING_MODEL]
+      );
+
       await pool.query(`
         ALTER TABLE projects
         ADD COLUMN IF NOT EXISTS kling_cfg_scale DOUBLE PRECISION
@@ -105,7 +115,7 @@ export async function bootstrapDatabase(): Promise<void> {
           project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
           status TEXT NOT NULL,
           cancel_requested BOOLEAN NOT NULL DEFAULT FALSE,
-          generation_profile TEXT NOT NULL DEFAULT 'testing',
+          generation_profile TEXT NOT NULL DEFAULT 'selected-model',
           planner_provider TEXT NOT NULL DEFAULT 'python-service',
           video_provider TEXT NOT NULL DEFAULT 'mock',
           provider_model TEXT,
@@ -141,7 +151,12 @@ export async function bootstrapDatabase(): Promise<void> {
 
       await pool.query(`
         ALTER TABLE generation_jobs
-        ADD COLUMN IF NOT EXISTS generation_profile TEXT NOT NULL DEFAULT 'testing'
+        ADD COLUMN IF NOT EXISTS generation_profile TEXT NOT NULL DEFAULT 'selected-model'
+      `);
+
+      await pool.query(`
+        ALTER TABLE generation_jobs
+        ALTER COLUMN generation_profile SET DEFAULT 'selected-model'
       `);
 
       await pool.query(`

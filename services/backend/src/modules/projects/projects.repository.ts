@@ -1,5 +1,6 @@
 import { pool } from "../../db/pool.js";
 import { v4 as uuidv4 } from "uuid";
+import { env } from "../../config/env.js";
 import type { ProjectPlanningSettings, ProjectShotPlanRecord, ShotPlanItem } from "../generate/generate.types.js";
 
 export interface ProjectRecord {
@@ -86,7 +87,7 @@ export async function createProject(params: {
       params.styleHint ?? null,
       params.narrativeMode ?? null,
       params.autoBeatDescriptions ?? true,
-      params.klingModel ?? null,
+      params.klingModel ?? env.KLING_MODEL,
       params.klingMode ?? null,
       params.klingCfgScale ?? null,
       params.klingCameraControlType ?? null,
@@ -182,7 +183,7 @@ export async function updateProjectPlanningSettings(
       settings.styleHint ?? null,
       settings.narrativeMode ?? null,
       settings.autoBeatDescriptions ?? null,
-      settings.klingModel ?? null,
+      settings.klingModel ?? env.KLING_MODEL,
       settings.klingMode ?? null,
       settings.klingCfgScale ?? null,
       settings.klingCameraControlType ?? null,

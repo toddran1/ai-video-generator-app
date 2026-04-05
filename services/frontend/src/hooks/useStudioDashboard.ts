@@ -48,7 +48,7 @@ import {
 
 function mapProjectToPlanningSettings(project: Project): ProjectPlanningSettings {
   return {
-    targetShotCount: project.target_shot_count ?? 3,
+    targetShotCount: project.target_shot_count ?? 1,
     defaultBeatDuration: project.default_beat_duration ?? DEFAULT_BEAT_DURATION,
     aspectRatio: (project.aspect_ratio as "16:9" | "9:16" | "1:1" | null) ?? "16:9",
     styleHint: project.style_hint ?? "",
@@ -88,7 +88,7 @@ export function useStudioDashboard() {
   const [videoProviderConfig, setVideoProviderConfig] = useState<VideoProviderConfig | null>(null);
   const [formState, setFormState] = useState<ProjectFormState>(initialFormState);
   const [planningSettings, setPlanningSettings] = useState<ProjectPlanningSettings>({
-    targetShotCount: 3,
+    targetShotCount: 1,
     defaultBeatDuration: DEFAULT_BEAT_DURATION,
     aspectRatio: "16:9",
     styleHint: "",
@@ -470,7 +470,7 @@ export function useStudioDashboard() {
 
     try {
       await updateProjectSettings(selectedProjectId, {
-        targetShotCount: planningSettings.targetShotCount ?? 3,
+        targetShotCount: planningSettings.targetShotCount ?? 1,
         defaultBeatDuration: planningSettings.defaultBeatDuration ?? DEFAULT_BEAT_DURATION,
         aspectRatio: planningSettings.aspectRatio ?? "16:9",
         styleHint: planningSettings.styleHint ?? "",

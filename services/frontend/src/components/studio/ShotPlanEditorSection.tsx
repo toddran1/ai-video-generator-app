@@ -1,4 +1,5 @@
 import type { Dispatch, SetStateAction } from "react";
+import { HelpTooltip } from "./HelpTooltip";
 import { DEFAULT_BEAT_DURATION, klingCameraControlTypes, resetShotKlingOverrides } from "../../lib/studio/config";
 import {
   applyStoryTemplateWithOptions,
@@ -11,6 +12,18 @@ import {
   shouldHideCameraControls
 } from "../../lib/studio/utils";
 import type { ProjectPlanningSettings, ProjectShotPlanItem } from "../../types";
+
+const cfgScaleHelp = "Adjusts how strongly Kling follows the prompt. Lower values allow more freedom; higher values push closer to the written prompt.";
+const cameraTypeHelp =
+  "Choose a motion preset, or select Simple to manually tune camera movement axes like pan, tilt, roll, and zoom.";
+const cameraAxisHelp: Record<string, string> = {
+  Horizontal: "Moves the camera left or right across the frame.",
+  Vertical: "Moves the camera up or down through the scene.",
+  Pan: "Rotates the camera left or right from a fixed position.",
+  Tilt: "Rotates the camera up or down from a fixed position.",
+  Roll: "Rotates the camera clockwise or counterclockwise.",
+  Zoom: "Pushes in closer or pulls back wider."
+};
 
 export function ShotPlanEditorSection({
   editableShotPlan,
@@ -172,7 +185,10 @@ export function ShotPlanEditorSection({
             </div>
 
             <label className="shot-plan-field">
-              <span className="metric-label">Generation Mode</span>
+              <span className="metric-label label-with-help">
+                Generation Mode
+                <HelpTooltip content="Generate creates a fresh clip. Extend continues from a previous shot for continuity." />
+              </span>
               <select
                 className="shot-plan-input"
                 onChange={(event) =>
@@ -201,7 +217,10 @@ export function ShotPlanEditorSection({
             {shot.generationMode === "extend-previous" ? (
               <>
                 <label className="shot-plan-field">
-                  <span className="metric-label">Source Shot</span>
+                  <span className="metric-label label-with-help">
+                    Source Shot
+                    <HelpTooltip content="Choose which earlier shot this clip should extend from." />
+                  </span>
                   <select
                     className="shot-plan-input"
                     onChange={(event) =>
@@ -221,7 +240,10 @@ export function ShotPlanEditorSection({
                   </select>
                 </label>
                 <label className="shot-plan-field">
-                  <span className="metric-label">Extend Prompt</span>
+                  <span className="metric-label label-with-help">
+                    Extend Prompt
+                    <HelpTooltip content="Describe how the continuation should evolve from the source clip." />
+                  </span>
                   <textarea
                     className="shot-plan-input"
                     onChange={(event) =>
@@ -364,7 +386,10 @@ export function ShotPlanEditorSection({
                   </label>
 
                   <label className="slider-label">
-                    <span>CFG Scale</span>
+                    <span className="label-with-help">
+                      CFG Scale
+                      <HelpTooltip content={cfgScaleHelp} />
+                    </span>
                     <div className="slider-control">
                       <input
                         onChange={(event) =>
@@ -388,7 +413,12 @@ export function ShotPlanEditorSection({
                 {!shouldHideCameraControls(planningSettings.klingModel ?? null, shot.klingMode ?? null) ? (
                   <div className="project-settings-grid">
                     <label>
-                      <span>Camera Type</span>
+                      <span className="label-with-help">
+                        Camera Type
+                        <HelpTooltip
+                          content={`${cameraTypeHelp} ${getShotCameraControlNotice(shot, planningSettings.klingModel ?? null)}`}
+                        />
+                      </span>
                       <select
                         onChange={(event) =>
                           setEditableShotPlan((current) =>
@@ -419,10 +449,6 @@ export function ShotPlanEditorSection({
                         ))}
                       </select>
                     </label>
-                    <p className="project-card-caption">
-                      {getShotCameraControlNotice(shot, planningSettings.klingModel ?? null)}
-                    </p>
-
                     {shot.klingCameraControlType === "simple"
                       ? ([
                           ["Horizontal", "klingCameraHorizontal"],
@@ -432,9 +458,12 @@ export function ShotPlanEditorSection({
                           ["Roll", "klingCameraRoll"],
                           ["Zoom", "klingCameraZoom"]
                         ] as const).map(([label, field]) => (
-                          <label className="slider-label" key={field}>
-                            <span>{label}</span>
-                            <div className="slider-control">
+                      <label className="slider-label" key={field}>
+                        <span className="label-with-help">
+                          {label}
+                          <HelpTooltip content={cameraAxisHelp[label]} />
+                        </span>
+                        <div className="slider-control">
                               <input
                                 onChange={(event) =>
                                   setEditableShotPlan((current) =>
@@ -457,9 +486,7 @@ export function ShotPlanEditorSection({
                         ))
                       : null}
                   </div>
-                ) : (
-                  <p className="project-card-caption">{getShotCameraControlNotice(shot)}</p>
-                )}
+                ) : null}
               </div>
             ) : null}
 

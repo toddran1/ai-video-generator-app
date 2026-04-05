@@ -11,7 +11,7 @@ export interface ShotPlanResult {
 }
 
 function buildPlannerPrompt(prompt: string, settings?: ProjectPlanningSettings): string {
-  const targetShotCount = Math.min(Math.max(settings?.targetShotCount ?? 3, 1), 12);
+  const targetShotCount = Math.min(Math.max(settings?.targetShotCount ?? 1, 1), 12);
   const defaultStoryBeats = ["Intro", "Continuation", "Climax", "Resolution", "Outro"].slice(
     0,
     targetShotCount

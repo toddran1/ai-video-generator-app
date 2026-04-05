@@ -53,7 +53,7 @@ const envSchema = z.object({
   KLING_API_KEY: z.string().optional(),
   KLING_ACCESS_KEY: z.string().optional(),
   KLING_SECRET_KEY: z.string().optional(),
-  KLING_MODEL: z.string().default("kling-v2.6-std"),
+  KLING_MODEL: z.string().default("kling-video-3.0"),
   KLING_SUPPORTED_MODELS: z
     .string()
     .default(
@@ -61,7 +61,7 @@ const envSchema = z.object({
     ),
   KLING_DURATION_SECONDS: z.coerce.number().default(5),
   KLING_ASPECT_RATIO: z.string().default("16:9"),
-  KLING_SUPPORTED_DURATIONS: z.string().default("5,10"),
+  KLING_SUPPORTED_DURATIONS: z.string().default("5,10,15"),
   KLING_SUPPORTED_ASPECT_RATIOS: z.string().default("16:9,9:16,1:1"),
   KLING_MODE: z.string().optional(),
   KLING_NEGATIVE_PROMPT: z.string().optional(),
@@ -74,7 +74,7 @@ const parsedEnv = envSchema.parse(process.env);
 
 export const env = {
   ...parsedEnv,
-  KLING_SUPPORTED_DURATION_VALUES: parseCsvValues(parsedEnv.KLING_SUPPORTED_DURATIONS, ["5", "10"])
+  KLING_SUPPORTED_DURATION_VALUES: parseCsvValues(parsedEnv.KLING_SUPPORTED_DURATIONS, ["5", "10", "15"])
     .map((value) => Number(value))
     .filter((value) => Number.isFinite(value)),
   KLING_SUPPORTED_MODEL_VALUES: parseCsvValues(parsedEnv.KLING_SUPPORTED_MODELS, [
