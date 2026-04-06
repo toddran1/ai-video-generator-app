@@ -11,6 +11,29 @@ def _clean_prompt(prompt: str) -> str:
 
 
 def _build_template(narrative_mode: str, shot_count: int, default_duration: int) -> list[dict[str, object]]:
+    if shot_count <= 1:
+        return [
+            {
+                "beatLabel": "Clip",
+                "description": "Create one strong standalone clip with a clear subject and visual payoff.",
+                "durationSeconds": _clamp(default_duration, 1, 30),
+            }
+        ]
+
+    if shot_count == 2:
+        return [
+            {
+                "beatLabel": "Opening",
+                "description": "Set up the subject, setting, and immediate visual context.",
+                "durationSeconds": _clamp(default_duration, 1, 30),
+            },
+            {
+                "beatLabel": "Continuation",
+                "description": "Carry the action or emotion forward into a strong follow-up moment.",
+                "durationSeconds": _clamp(default_duration, 1, 30),
+            },
+        ]
+
     templates: dict[str, list[dict[str, object]]] = {
         "3-beat-story": [
             {"beatLabel": "Intro", "description": "Open by establishing the subject, world, and immediate context.", "durationOffset": 0},
@@ -58,7 +81,7 @@ def _build_template(narrative_mode: str, shot_count: int, default_duration: int)
 
 def build_shot_plan(payload: ShotPlanRequest) -> ShotPlanResponse:
     base_prompt = _clean_prompt(payload.prompt)
-    shot_count = _clamp(payload.targetShotCount or 3, 1, 12)
+    shot_count = _clamp(payload.targetShotCount or 1, 1, 12)
     default_duration = _clamp(payload.defaultBeatDuration or 5, 1, 30)
     narrative_mode = payload.narrativeMode or "3-beat-story"
     auto_descriptions = payload.autoBeatDescriptions is not False

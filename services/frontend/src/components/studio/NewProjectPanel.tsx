@@ -184,6 +184,34 @@ export function NewProjectPanel({
           />
         </label>
 
+        <div className="project-settings-grid">
+          <label>
+            <span className="label-with-help">
+              Default Camera Notes
+              <HelpTooltip content="These notes seed every shot in the project unless you override them per shot later." />
+            </span>
+            <textarea
+              value={formState.cameraNotes}
+              onChange={(event) => setFormState((current) => ({ ...current, cameraNotes: event.target.value }))}
+              placeholder="handheld, dolly in, low angle..."
+              rows={2}
+            />
+          </label>
+
+          <label>
+            <span className="label-with-help">
+              Default Negative Prompt
+              <HelpTooltip content="This negative prompt is applied across the project by default unless you override it per shot later." />
+            </span>
+            <textarea
+              value={formState.negativePrompt}
+              onChange={(event) => setFormState((current) => ({ ...current, negativePrompt: event.target.value }))}
+              placeholder="blurry, text, watermark..."
+              rows={2}
+            />
+          </label>
+        </div>
+
         {formState.targetShotCount > 2 ? (
           <div className="project-settings-grid">
             <label>

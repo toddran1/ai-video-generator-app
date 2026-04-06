@@ -1,10 +1,13 @@
 import { z } from "zod";
 
 const projectPlanningSettingsSchema = z.object({
+  prompt: z.string().min(1).optional().nullable(),
   targetShotCount: z.coerce.number().int().positive().max(12).optional().nullable(),
   defaultBeatDuration: z.coerce.number().int().positive().max(30).optional().nullable(),
   aspectRatio: z.enum(["16:9", "9:16", "1:1"]).optional().nullable(),
   styleHint: z.string().max(500).optional().nullable(),
+  negativePrompt: z.string().optional().nullable(),
+  cameraNotes: z.string().optional().nullable(),
   narrativeMode: z.enum(["3-beat-story", "5-beat-story", "fight-scene", "dialogue-scene", "reveal-arc"]).optional().nullable(),
   autoBeatDescriptions: z.coerce.boolean().optional().nullable(),
   klingModel: z.string().max(100).optional().nullable(),
@@ -29,6 +32,8 @@ export const createProjectSchema = z.object({
   defaultBeatDuration: projectPlanningSettingsSchema.shape.defaultBeatDuration,
   aspectRatio: projectPlanningSettingsSchema.shape.aspectRatio,
   styleHint: projectPlanningSettingsSchema.shape.styleHint,
+  negativePrompt: projectPlanningSettingsSchema.shape.negativePrompt,
+  cameraNotes: projectPlanningSettingsSchema.shape.cameraNotes,
   narrativeMode: projectPlanningSettingsSchema.shape.narrativeMode,
   autoBeatDescriptions: projectPlanningSettingsSchema.shape.autoBeatDescriptions,
   klingModel: projectPlanningSettingsSchema.shape.klingModel,

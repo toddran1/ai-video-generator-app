@@ -7,6 +7,8 @@ export interface ProjectFormState {
   defaultBeatDuration: number;
   aspectRatio: "16:9" | "9:16" | "1:1";
   styleHint: string;
+  negativePrompt: string;
+  cameraNotes: string;
   narrativeMode: "3-beat-story" | "5-beat-story" | "fight-scene" | "dialogue-scene" | "reveal-arc";
   autoBeatDescriptions: boolean;
   klingModel: string;
@@ -33,6 +35,8 @@ export const initialFormState: ProjectFormState = {
   defaultBeatDuration: DEFAULT_BEAT_DURATION,
   aspectRatio: "16:9",
   styleHint: "",
+  negativePrompt: "",
+  cameraNotes: "",
   narrativeMode: "3-beat-story",
   autoBeatDescriptions: true,
   klingModel: "kling-video-3.0",
@@ -57,42 +61,44 @@ export const klingCameraControlTypes = [
   { value: "left_turn_forward", label: "Left Turn Forward" }
 ] as const;
 
-export function createDefaultShotPlan(durationSeconds = DEFAULT_BEAT_DURATION): ProjectShotPlanItem[] {
-  return [
+export function createDefaultShotPlan(
+  durationSeconds = DEFAULT_BEAT_DURATION,
+  shotCount = initialFormState.targetShotCount,
+  shotDefaults?: { negativePrompt?: string | null; cameraNotes?: string | null }
+): ProjectShotPlanItem[] {
+  const normalizedShotCount = Math.min(Math.max(shotCount, 1), 12);
+  const baseShots = [
     {
-      shotNumber: 1,
-      beatLabel: "Intro",
-      description: "Establishing shot",
-      durationSeconds,
-      generationMode: "generate",
-      sourceShotNumber: null,
-      extendPrompt: "",
-      negativePrompt: "",
-      cameraNotes: ""
+      beatLabel: normalizedShotCount === 1 ? "Clip" : "Intro",
+      description: normalizedShotCount === 1 ? "Single clip" : "Establishing shot",
+      extendPrompt: ""
     },
     {
-      shotNumber: 2,
       beatLabel: "Continuation",
       description: "Main action beat",
-      durationSeconds,
-      generationMode: "extend-previous",
-      sourceShotNumber: 1,
-      extendPrompt: "Continue the established action and motion from shot 1.",
-      negativePrompt: "",
-      cameraNotes: ""
+      extendPrompt: "Continue the established action and motion from shot 1."
     },
     {
-      shotNumber: 3,
       beatLabel: "Climax",
       description: "Closing shot",
-      durationSeconds,
-      generationMode: "extend-previous",
-      sourceShotNumber: 2,
-      extendPrompt: "Carry the sequence forward into the climactic payoff from shot 2.",
-      negativePrompt: "",
-      cameraNotes: ""
+      extendPrompt: "Carry the sequence forward into the climactic payoff from shot 2."
     }
   ];
+
+  return Array.from({ length: normalizedShotCount }, (_, index) => {
+    const fallback = baseShots[Math.min(index, baseShots.length - 1)];
+    return {
+      shotNumber: index + 1,
+      beatLabel: fallback.beatLabel,
+      description: fallback.description,
+      durationSeconds,
+      generationMode: index === 0 ? "generate" : "extend-previous",
+      sourceShotNumber: index === 0 ? null : index,
+      extendPrompt: index === 0 ? "" : fallback.extendPrompt,
+      negativePrompt: shotDefaults?.negativePrompt ?? "",
+      cameraNotes: shotDefaults?.cameraNotes ?? ""
+    };
+  });
 }
 
 export function resetKlingFormFields(state: ProjectFormState): ProjectFormState {

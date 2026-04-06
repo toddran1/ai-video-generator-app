@@ -21,6 +21,8 @@ export async function bootstrapDatabase(): Promise<void> {
           default_beat_duration INTEGER,
           aspect_ratio TEXT,
           style_hint TEXT,
+          negative_prompt TEXT,
+          camera_notes TEXT,
           narrative_mode TEXT,
           auto_beat_descriptions BOOLEAN NOT NULL DEFAULT TRUE,
           kling_model TEXT,
@@ -52,6 +54,16 @@ export async function bootstrapDatabase(): Promise<void> {
       await pool.query(`
         ALTER TABLE projects
         ADD COLUMN IF NOT EXISTS style_hint TEXT
+      `);
+
+      await pool.query(`
+        ALTER TABLE projects
+        ADD COLUMN IF NOT EXISTS negative_prompt TEXT
+      `);
+
+      await pool.query(`
+        ALTER TABLE projects
+        ADD COLUMN IF NOT EXISTS camera_notes TEXT
       `);
 
       await pool.query(`
@@ -101,6 +113,36 @@ export async function bootstrapDatabase(): Promise<void> {
       await pool.query(`
         ALTER TABLE projects
         ADD COLUMN IF NOT EXISTS kling_camera_control_value DOUBLE PRECISION
+      `);
+
+      await pool.query(`
+        ALTER TABLE projects
+        ADD COLUMN IF NOT EXISTS kling_camera_horizontal DOUBLE PRECISION
+      `);
+
+      await pool.query(`
+        ALTER TABLE projects
+        ADD COLUMN IF NOT EXISTS kling_camera_vertical DOUBLE PRECISION
+      `);
+
+      await pool.query(`
+        ALTER TABLE projects
+        ADD COLUMN IF NOT EXISTS kling_camera_pan DOUBLE PRECISION
+      `);
+
+      await pool.query(`
+        ALTER TABLE projects
+        ADD COLUMN IF NOT EXISTS kling_camera_tilt DOUBLE PRECISION
+      `);
+
+      await pool.query(`
+        ALTER TABLE projects
+        ADD COLUMN IF NOT EXISTS kling_camera_roll DOUBLE PRECISION
+      `);
+
+      await pool.query(`
+        ALTER TABLE projects
+        ADD COLUMN IF NOT EXISTS kling_camera_zoom DOUBLE PRECISION
       `);
 
       await pool.query(`

@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { HeroSection } from "./components/dashboard/HeroSection";
 import { FeaturedOutputPanel } from "./components/studio/FeaturedOutputPanel";
 import { GenerateConfirmModal } from "./components/studio/GenerateConfirmModal";
@@ -61,6 +62,16 @@ export default function App() {
     usesFixedDurationOptions,
     usingManualShotPlan
   } = useStudioDashboard();
+
+  useEffect(() => {
+    const previousScrollRestoration = window.history.scrollRestoration;
+    window.history.scrollRestoration = "manual";
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+
+    return () => {
+      window.history.scrollRestoration = previousScrollRestoration;
+    };
+  }, []);
 
   return (
     <div className="page-shell">

@@ -196,6 +196,7 @@ a {
 .project-form select,
 .project-settings-grid input,
 .project-settings-grid select,
+.project-settings-grid textarea,
 .project-settings-stack input {
   width: 100%;
   background: rgba(255, 255, 255, 0.05);
@@ -229,6 +230,11 @@ a {
 .project-form textarea {
   resize: vertical;
   min-height: 140px;
+}
+
+.project-settings-grid textarea {
+  resize: vertical;
+  min-height: 96px;
 }
 
 .project-settings-grid {

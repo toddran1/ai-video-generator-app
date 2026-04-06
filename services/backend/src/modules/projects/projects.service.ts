@@ -24,6 +24,8 @@ export async function createProjectRecord(input: CreateProjectInput) {
     defaultBeatDuration: input.defaultBeatDuration ?? 5,
     aspectRatio: input.aspectRatio ?? null,
     styleHint: input.styleHint ?? null,
+    negativePrompt: input.negativePrompt ?? null,
+    cameraNotes: input.cameraNotes ?? null,
     narrativeMode: input.narrativeMode ?? null,
     autoBeatDescriptions: input.autoBeatDescriptions ?? true,
     klingModel: input.klingModel ?? null,
@@ -120,6 +122,8 @@ export async function previewAutoShotPlan(projectId: string) {
     defaultBeatDuration: project.default_beat_duration,
     aspectRatio: project.aspect_ratio,
     styleHint: project.style_hint,
+    negativePrompt: project.negative_prompt,
+    cameraNotes: project.camera_notes,
     narrativeMode: project.narrative_mode,
     autoBeatDescriptions: project.auto_beat_descriptions,
     klingModel: project.kling_model,
@@ -141,10 +145,13 @@ export async function updateProjectPlanningSettingsOrThrow(
   input: UpdateProjectPlanningSettingsInput
 ) {
   const project = await updateProjectPlanningSettings(projectId, {
+    prompt: input.prompt ?? null,
     targetShotCount: input.targetShotCount ?? null,
     defaultBeatDuration: input.defaultBeatDuration ?? 5,
     aspectRatio: input.aspectRatio ?? null,
     styleHint: input.styleHint ?? null,
+    negativePrompt: input.negativePrompt ?? null,
+    cameraNotes: input.cameraNotes ?? null,
     narrativeMode: input.narrativeMode ?? null,
     autoBeatDescriptions: input.autoBeatDescriptions ?? true,
     klingModel: input.klingModel ?? null,

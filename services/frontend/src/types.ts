@@ -8,6 +8,8 @@ export interface Project {
   default_beat_duration: number | null;
   aspect_ratio: string | null;
   style_hint: string | null;
+  negative_prompt: string | null;
+  camera_notes: string | null;
   narrative_mode: string | null;
   auto_beat_descriptions: boolean;
   kling_model: string | null;
@@ -25,10 +27,13 @@ export interface Project {
 }
 
 export interface ProjectPlanningSettings {
+  prompt?: string | null;
   targetShotCount?: number | null;
   defaultBeatDuration?: number | null;
   aspectRatio?: "16:9" | "9:16" | "1:1" | null;
   styleHint?: string | null;
+  negativePrompt?: string | null;
+  cameraNotes?: string | null;
   narrativeMode?: "3-beat-story" | "5-beat-story" | "fight-scene" | "dialogue-scene" | "reveal-arc" | null;
   autoBeatDescriptions?: boolean | null;
   klingModel?: string | null;

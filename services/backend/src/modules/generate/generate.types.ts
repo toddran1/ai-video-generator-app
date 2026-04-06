@@ -20,10 +20,13 @@ export interface ShotPlanItem {
 }
 
 export interface ProjectPlanningSettings {
+  prompt?: string | null;
   targetShotCount?: number | null;
   defaultBeatDuration?: number | null;
   aspectRatio?: string | null;
   styleHint?: string | null;
+  negativePrompt?: string | null;
+  cameraNotes?: string | null;
   narrativeMode?: string | null;
   autoBeatDescriptions?: boolean | null;
   klingModel?: string | null;

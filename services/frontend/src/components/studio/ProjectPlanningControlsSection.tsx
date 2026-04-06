@@ -38,20 +38,46 @@ export function ProjectPlanningControlsSection({
   onSaveProjectSettings: () => void;
 }) {
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
+  const targetShotCount = planningSettings.targetShotCount ?? 1;
+  const isNarrativeProject = targetShotCount > 2;
+  const planningTitle = isNarrativeProject
+    ? "Guide multi-shot planning and generation defaults"
+    : "Guide single-clip generation defaults";
+  const planningCaption = isNarrativeProject
+    ? "Use narrative planning when you want 3+ connected shots."
+    : "Keep this lightweight for 1-2 shot clips. Focus on prompt, model, duration, and optional Kling tuning.";
 
   return (
     <div className="detail-section">
       <div className="section-head">
         <div>
           <p className="eyebrow">Project Planning Controls</p>
-          <h3>Guide auto planning and generation defaults</h3>
-          <p className="project-card-caption">
-            Keep this lightweight for short clips. Use narrative planning when you want 3+ connected shots.
-          </p>
+          <h3>{planningTitle}</h3>
+          <p className="project-card-caption">{planningCaption}</p>
         </div>
         <button className="primary-button" disabled={isSavingSettings} onClick={onSaveProjectSettings} type="button">
           {isSavingSettings ? "Saving..." : "Save Settings"}
         </button>
+      </div>
+
+      <div className="project-settings-grid">
+        <label className="project-settings-stack">
+          <span className="label-with-help">
+            Prompt
+            <HelpTooltip content="Update the main project prompt here. For a single clip, this is the primary creative input." />
+          </span>
+          <textarea
+            onChange={(event) =>
+              setPlanningSettings((current) => ({
+                ...current,
+                prompt: event.target.value
+              }))
+            }
+            placeholder="Describe the clip or sequence naturally..."
+            rows={5}
+            value={planningSettings.prompt ?? ""}
+          />
+        </label>
       </div>
 
       <div className="project-settings-grid">
@@ -161,7 +187,39 @@ export function ProjectPlanningControlsSection({
         />
       </label>
 
-      {(planningSettings.targetShotCount ?? 1) > 2 ? (
+      <div className="project-settings-grid">
+        <label>
+          <span className="label-with-help">
+            Default Camera Notes
+            <HelpTooltip content="These notes seed every shot in the project unless you override them per shot later." />
+          </span>
+          <textarea
+            onChange={(event) =>
+              setPlanningSettings((current) => ({ ...current, cameraNotes: event.target.value }))
+            }
+            placeholder="handheld, dolly in, low angle..."
+            rows={2}
+            value={planningSettings.cameraNotes ?? ""}
+          />
+        </label>
+
+        <label>
+          <span className="label-with-help">
+            Default Negative Prompt
+            <HelpTooltip content="This negative prompt is applied across the project by default unless you override it per shot later." />
+          </span>
+          <textarea
+            onChange={(event) =>
+              setPlanningSettings((current) => ({ ...current, negativePrompt: event.target.value }))
+            }
+            placeholder="blurry, text, watermark..."
+            rows={2}
+            value={planningSettings.negativePrompt ?? ""}
+          />
+        </label>
+      </div>
+
+      {isNarrativeProject ? (
         <div className="project-settings-grid">
           <label>
             <span className="label-with-help">

@@ -13,6 +13,8 @@ export interface ProjectRecord {
   default_beat_duration: number | null;
   aspect_ratio: string | null;
   style_hint: string | null;
+  negative_prompt: string | null;
+  camera_notes: string | null;
   narrative_mode: string | null;
   auto_beat_descriptions: boolean;
   kling_model: string | null;
@@ -37,6 +39,8 @@ export async function createProject(params: {
   defaultBeatDuration?: number | null;
   aspectRatio?: string | null;
   styleHint?: string | null;
+  negativePrompt?: string | null;
+  cameraNotes?: string | null;
   narrativeMode?: string | null;
   autoBeatDescriptions?: boolean | null;
   klingModel?: string | null;
@@ -61,6 +65,8 @@ export async function createProject(params: {
         default_beat_duration,
         aspect_ratio,
         style_hint,
+        negative_prompt,
+        camera_notes,
         narrative_mode,
         auto_beat_descriptions,
         kling_model,
@@ -74,7 +80,7 @@ export async function createProject(params: {
         kling_camera_roll,
         kling_camera_zoom
       )
-      VALUES ($1, $2, $3, 'draft', $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+      VALUES ($1, $2, $3, 'draft', $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
       RETURNING *
     `,
     [
@@ -85,6 +91,8 @@ export async function createProject(params: {
       params.defaultBeatDuration ?? null,
       params.aspectRatio ?? null,
       params.styleHint ?? null,
+      params.negativePrompt ?? null,
+      params.cameraNotes ?? null,
       params.narrativeMode ?? null,
       params.autoBeatDescriptions ?? true,
       params.klingModel ?? env.KLING_MODEL,
@@ -155,32 +163,38 @@ export async function updateProjectPlanningSettings(
   const result = await pool.query<ProjectRecord>(
     `
       UPDATE projects
-      SET target_shot_count = $2,
-          default_beat_duration = $3,
-          aspect_ratio = $4,
-          style_hint = $5,
-          narrative_mode = $6,
-          auto_beat_descriptions = COALESCE($7, auto_beat_descriptions),
-          kling_model = $8,
-          kling_mode = $9,
-          kling_cfg_scale = $10,
-          kling_camera_control_type = $11,
-          kling_camera_horizontal = $12,
-          kling_camera_vertical = $13,
-          kling_camera_pan = $14,
-          kling_camera_tilt = $15,
-          kling_camera_roll = $16,
-          kling_camera_zoom = $17,
+      SET prompt = $2,
+          target_shot_count = $3,
+          default_beat_duration = $4,
+          aspect_ratio = $5,
+          style_hint = $6,
+          negative_prompt = $7,
+          camera_notes = $8,
+          narrative_mode = $9,
+          auto_beat_descriptions = COALESCE($10, auto_beat_descriptions),
+          kling_model = $11,
+          kling_mode = $12,
+          kling_cfg_scale = $13,
+          kling_camera_control_type = $14,
+          kling_camera_horizontal = $15,
+          kling_camera_vertical = $16,
+          kling_camera_pan = $17,
+          kling_camera_tilt = $18,
+          kling_camera_roll = $19,
+          kling_camera_zoom = $20,
           updated_at = NOW()
       WHERE id = $1
       RETURNING *
     `,
     [
       id,
+      settings.prompt ?? null,
       settings.targetShotCount ?? null,
       settings.defaultBeatDuration ?? null,
       settings.aspectRatio ?? null,
       settings.styleHint ?? null,
+      settings.negativePrompt ?? null,
+      settings.cameraNotes ?? null,
       settings.narrativeMode ?? null,
       settings.autoBeatDescriptions ?? null,
       settings.klingModel ?? env.KLING_MODEL,

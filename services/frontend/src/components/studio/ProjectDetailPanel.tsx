@@ -92,6 +92,14 @@ export function ProjectDetailPanel({
   usesFixedDurationOptions: boolean;
   usingManualShotPlan: boolean;
 }) {
+  const effectiveShotCount =
+    editableShotPlan.length > 0
+      ? editableShotPlan.length
+      : savedShotPlan.length > 0
+        ? savedShotPlan.length
+        : selectedProject?.target_shot_count ?? 1;
+  const isSingleClipProject = effectiveShotCount <= 1;
+
   return (
     <section className="panel">
       <div className="panel-header">
@@ -157,11 +165,13 @@ export function ProjectDetailPanel({
                 usingManualShotPlan={usingManualShotPlan}
               />
 
-              <PlanCompareSection
-                autoShotPlanPreview={autoShotPlanPreview}
-                savedShotPlan={savedShotPlan}
-                usingManualShotPlan={usingManualShotPlan}
-              />
+              {!isSingleClipProject ? (
+                <PlanCompareSection
+                  autoShotPlanPreview={autoShotPlanPreview}
+                  savedShotPlan={savedShotPlan}
+                  usingManualShotPlan={usingManualShotPlan}
+                />
+              ) : null}
 
               <LatestJobSection
                 activeProjectId={activeProjectId}

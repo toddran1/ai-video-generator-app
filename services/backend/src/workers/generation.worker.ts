@@ -1,9 +1,10 @@
 import { Worker } from "bullmq";
 import fs from "node:fs/promises";
+import path from "node:path";
 import axios from "axios";
 import { env } from "../config/env.js";
 import { bootstrapDatabase } from "../db/bootstrap.js";
-import { extractClipTail, stitchClips } from "../lib/ffmpeg.js";
+import { extractClipTail, stitchClips, validateVideoFile } from "../lib/ffmpeg.js";
 import { GENERATION_QUEUE_NAME, type GenerationJobPayload } from "../queues/generation.queue.js";
 import { redisConnection } from "../queues/redis.js";
 import { localAssetService } from "../modules/assets/local-asset.service.js";
@@ -268,6 +269,8 @@ async function processGenerationJob(payload: GenerationJobPayload): Promise<void
     defaultBeatDuration: project.default_beat_duration,
     aspectRatio: project.aspect_ratio,
     styleHint: project.style_hint,
+    negativePrompt: project.negative_prompt,
+    cameraNotes: project.camera_notes,
     narrativeMode: project.narrative_mode,
     autoBeatDescriptions: project.auto_beat_descriptions
   };
@@ -475,7 +478,15 @@ async function processGenerationJob(payload: GenerationJobPayload): Promise<void
   }
 
   const finalVideoPath = localAssetService.getFinalVideoPath(payload.projectId);
-  await stitchClips(clipPaths, finalVideoPath);
+
+  if (clipPaths.length === 1) {
+    await fs.mkdir(path.dirname(finalVideoPath), { recursive: true });
+    await fs.copyFile(clipPaths[0], finalVideoPath);
+  } else {
+    await stitchClips(clipPaths, finalVideoPath);
+  }
+
+  await validateVideoFile(finalVideoPath);
 
   const publicUrl = localAssetService.getPublicAssetUrl("outputs", payload.projectId, "final.mp4");
   const metadataUrl = await writeProviderMetadataArchive(payload.jobId, payload.projectId);

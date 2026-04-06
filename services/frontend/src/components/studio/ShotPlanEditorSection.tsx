@@ -1,6 +1,11 @@
 import type { Dispatch, SetStateAction } from "react";
 import { HelpTooltip } from "./HelpTooltip";
-import { DEFAULT_BEAT_DURATION, klingCameraControlTypes, resetShotKlingOverrides } from "../../lib/studio/config";
+import {
+  createDefaultShotPlan,
+  DEFAULT_BEAT_DURATION,
+  klingCameraControlTypes,
+  resetShotKlingOverrides
+} from "../../lib/studio/config";
 import {
   applyStoryTemplateWithOptions,
   getClosestSupportedDuration,
@@ -54,15 +59,21 @@ export function ShotPlanEditorSection({
   usingManualShotPlan: boolean;
   savedShotPlan: ProjectShotPlanItem[];
 }) {
+  const isSingleShotEditor = editableShotPlan.length <= 1;
+  const showStoryTemplates = editableShotPlan.length > 1 && (planningSettings.targetShotCount ?? editableShotPlan.length) > 2;
+  const editorEyebrow = isSingleShotEditor ? "Clip Settings" : "Shot Plan Editor";
+  const editorTitle = isSingleShotEditor ? "Fine-tune the clip for this project" : "Override automatic planning for this project";
+  const editorCaption = isSingleShotEditor
+    ? "Adjust the prompt details for this clip, then add another shot when you want continuity controls."
+    : "Reorder shots, tune continuity controls, and save a manual plan before you spend credits.";
+
   return (
     <div className="detail-section">
       <div className="section-head">
         <div>
-          <p className="eyebrow">Shot Plan Editor</p>
-          <h3>Override automatic planning for this project</h3>
-          <p className="project-card-caption">
-            Reorder shots, tune camera notes, and save a manual plan before you spend credits.
-          </p>
+          <p className="eyebrow">{editorEyebrow}</p>
+          <h3>{editorTitle}</h3>
+          <p className="project-card-caption">{editorCaption}</p>
         </div>
         <div className="section-actions">
           <button
@@ -73,7 +84,14 @@ export function ShotPlanEditorSection({
                   normalizeShotPlanDurations(
                     usingManualShotPlan
                       ? savedShotPlan
-                      : createFallbackPlan(planningSettings.defaultBeatDuration ?? DEFAULT_BEAT_DURATION),
+                      : createDefaultShotPlan(
+                          planningSettings.defaultBeatDuration ?? DEFAULT_BEAT_DURATION,
+                          planningSettings.targetShotCount ?? 1,
+                          {
+                            negativePrompt: planningSettings.negativePrompt ?? "",
+                            cameraNotes: planningSettings.cameraNotes ?? ""
+                          }
+                        ),
                     supportedDurations
                   )
                 )
@@ -83,62 +101,66 @@ export function ShotPlanEditorSection({
           >
             Reset Editor
           </button>
-          <button
-            className="ghost-button"
-            disabled={autoShotPlanPreview.length === 0}
-            onClick={() =>
-              setEditableShotPlan(
-                normalizeShotSequence(
-                  normalizeShotPlanDurations(
-                    normalizeShotSequence(
-                      autoShotPlanPreview.map((shot) => ({
-                        ...shot,
-                        negativePrompt: shot.negativePrompt ?? "",
-                        cameraNotes: shot.cameraNotes ?? ""
-                      }))
-                    ),
-                    supportedDurations
+          {!isSingleShotEditor ? (
+            <button
+              className="ghost-button"
+              disabled={autoShotPlanPreview.length === 0}
+              onClick={() =>
+                setEditableShotPlan(
+                  normalizeShotSequence(
+                    normalizeShotPlanDurations(
+                      normalizeShotSequence(
+                        autoShotPlanPreview.map((shot) => ({
+                          ...shot,
+                          negativePrompt: shot.negativePrompt ?? "",
+                          cameraNotes: shot.cameraNotes ?? ""
+                        }))
+                      ),
+                      supportedDurations
+                    )
                   )
                 )
-              )
-            }
-            type="button"
-          >
-            Copy Auto Plan Into Editor
-          </button>
+              }
+              type="button"
+            >
+              Copy Auto Plan Into Editor
+            </button>
+          ) : null}
           <button className="primary-button" disabled={isSavingShotPlan} onClick={onSaveShotPlan} type="button">
-            {isSavingShotPlan ? "Saving..." : "Save Shot Plan"}
+            {isSavingShotPlan ? "Saving..." : isSingleShotEditor ? "Save Clip Settings" : "Save Shot Plan"}
           </button>
         </div>
       </div>
 
-      <div className="story-template-row">
-        <span className="metric-label">Story Templates</span>
-        <div className="toggle-row">
-          <button
-            className="ghost-button"
-            onClick={() =>
-              setEditableShotPlan((current) =>
-                normalizeShotSequence(
-                  normalizeShotPlanDurations(
-                    applyStoryTemplateWithOptions(
-                      planningSettings.narrativeMode ?? "3-beat-story",
-                      planningSettings.targetShotCount ?? 3,
-                      planningSettings.defaultBeatDuration ?? DEFAULT_BEAT_DURATION,
-                      !(planningSettings.autoBeatDescriptions ?? true),
-                      current
-                    ),
-                    supportedDurations
+      {showStoryTemplates ? (
+        <div className="story-template-row">
+          <span className="metric-label">Story Templates</span>
+          <div className="toggle-row">
+            <button
+              className="ghost-button"
+              onClick={() =>
+                setEditableShotPlan((current) =>
+                  normalizeShotSequence(
+                    normalizeShotPlanDurations(
+                      applyStoryTemplateWithOptions(
+                        planningSettings.narrativeMode ?? "3-beat-story",
+                        planningSettings.targetShotCount ?? 3,
+                        planningSettings.defaultBeatDuration ?? DEFAULT_BEAT_DURATION,
+                        !(planningSettings.autoBeatDescriptions ?? true),
+                        current
+                      ),
+                      supportedDurations
+                    )
                   )
                 )
-              )
-            }
-            type="button"
-          >
-            Apply Current Narrative Mode
-          </button>
+              }
+              type="button"
+            >
+              Apply Current Narrative Mode
+            </button>
+          </div>
         </div>
-      </div>
+      ) : null}
 
       <div className="shot-plan-editor">
         {editableShotPlan.map((shot, index) => (
@@ -163,10 +185,12 @@ export function ShotPlanEditorSection({
           >
             <div className="shot-plan-editor-head">
               <div className="shot-index-group">
-                <span className="drag-handle" title="Drag to reorder">
-                  Drag
-                </span>
-                <span className="shot-index">Shot {index + 1}</span>
+                {!isSingleShotEditor ? (
+                  <span className="drag-handle" title="Drag to reorder">
+                    Drag
+                  </span>
+                ) : null}
+                <span className="shot-index">{isSingleShotEditor ? "Clip" : `Shot ${index + 1}`}</span>
               </div>
               <div className="editor-row-actions">
                 <button
@@ -184,35 +208,37 @@ export function ShotPlanEditorSection({
               </div>
             </div>
 
-            <label className="shot-plan-field">
-              <span className="metric-label label-with-help">
-                Generation Mode
-                <HelpTooltip content="Generate creates a fresh clip. Extend continues from a previous shot for continuity." />
-              </span>
-              <select
-                className="shot-plan-input"
-                onChange={(event) =>
-                  setEditableShotPlan((current) =>
-                    current.map((item, currentIndex) =>
-                      currentIndex === index
-                        ? {
-                            ...item,
-                            generationMode: event.target.value as "generate" | "extend-previous",
-                            sourceShotNumber:
-                              event.target.value === "extend-previous" ? item.sourceShotNumber ?? Math.max(index, 1) : null
-                          }
-                        : item
+            {!isSingleShotEditor ? (
+              <label className="shot-plan-field">
+                <span className="metric-label label-with-help">
+                  Generation Mode
+                  <HelpTooltip content="Generate creates a fresh clip. Extend continues from a previous shot for continuity." />
+                </span>
+                <select
+                  className="shot-plan-input"
+                  onChange={(event) =>
+                    setEditableShotPlan((current) =>
+                      current.map((item, currentIndex) =>
+                        currentIndex === index
+                          ? {
+                              ...item,
+                              generationMode: event.target.value as "generate" | "extend-previous",
+                              sourceShotNumber:
+                                event.target.value === "extend-previous" ? item.sourceShotNumber ?? Math.max(index, 1) : null
+                            }
+                          : item
+                      )
                     )
-                  )
-                }
-                value={shot.generationMode ?? "generate"}
-              >
-                <option value="generate">Generate New Clip</option>
-                <option value="extend-previous" disabled={index === 0}>
-                  Extend Previous Clip
-                </option>
-              </select>
-            </label>
+                  }
+                  value={shot.generationMode ?? "generate"}
+                >
+                  <option value="generate">Generate New Clip</option>
+                  <option value="extend-previous" disabled={index === 0}>
+                    Extend Previous Clip
+                  </option>
+                </select>
+              </label>
+            ) : null}
 
             {shot.generationMode === "extend-previous" ? (
               <>
@@ -261,21 +287,23 @@ export function ShotPlanEditorSection({
               </>
             ) : null}
 
-            <label className="shot-plan-field">
-              <span className="metric-label">Beat Label</span>
-              <input
-                className="shot-plan-input"
-                onChange={(event) =>
-                  setEditableShotPlan((current) =>
-                    current.map((item, currentIndex) =>
-                      currentIndex === index ? { ...item, beatLabel: event.target.value } : item
+            {!isSingleShotEditor ? (
+              <label className="shot-plan-field">
+                <span className="metric-label">Beat Label</span>
+                <input
+                  className="shot-plan-input"
+                  onChange={(event) =>
+                    setEditableShotPlan((current) =>
+                      current.map((item, currentIndex) =>
+                        currentIndex === index ? { ...item, beatLabel: event.target.value } : item
+                      )
                     )
-                  )
-                }
-                placeholder="Intro, Continuation, Climax..."
-                value={shot.beatLabel ?? ""}
-              />
-            </label>
+                  }
+                  placeholder="Intro, Continuation, Climax..."
+                  value={shot.beatLabel ?? ""}
+                />
+              </label>
+            ) : null}
 
             <label className="shot-plan-field">
               <span className="metric-label">Shot Description</span>
@@ -559,47 +587,9 @@ export function ShotPlanEditorSection({
           }
           type="button"
         >
-          Add Shot
+          {isSingleShotEditor ? "Add Another Shot" : "Add Shot"}
         </button>
       </div>
     </div>
   );
-}
-
-function createFallbackPlan(defaultBeatDuration: number): ProjectShotPlanItem[] {
-  return [
-    {
-      shotNumber: 1,
-      beatLabel: "Intro",
-      description: "Establishing shot",
-      durationSeconds: defaultBeatDuration,
-      generationMode: "generate",
-      sourceShotNumber: null,
-      extendPrompt: "",
-      negativePrompt: "",
-      cameraNotes: ""
-    },
-    {
-      shotNumber: 2,
-      beatLabel: "Continuation",
-      description: "Main action beat",
-      durationSeconds: defaultBeatDuration,
-      generationMode: "extend-previous",
-      sourceShotNumber: 1,
-      extendPrompt: "Continue the established action and motion from shot 1.",
-      negativePrompt: "",
-      cameraNotes: ""
-    },
-    {
-      shotNumber: 3,
-      beatLabel: "Climax",
-      description: "Closing shot",
-      durationSeconds: defaultBeatDuration,
-      generationMode: "extend-previous",
-      sourceShotNumber: 2,
-      extendPrompt: "Carry the sequence forward into the climactic payoff from shot 2.",
-      negativePrompt: "",
-      cameraNotes: ""
-    }
-  ];
 }

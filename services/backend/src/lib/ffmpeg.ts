@@ -13,6 +13,19 @@ function runCommand(command: ffmpeg.FfmpegCommand): Promise<void> {
   });
 }
 
+function probeCommand(inputPath: string): Promise<ffmpeg.FfprobeData> {
+  return new Promise((resolve, reject) => {
+    ffmpeg.ffprobe(inputPath, (error, data) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+
+      resolve(data);
+    });
+  });
+}
+
 function getSafeTrimDuration(totalDuration: number, startSeconds: number): number {
   return Math.max(totalDuration - startSeconds, 0);
 }
@@ -47,16 +60,15 @@ export async function stitchClips(inputPaths: string[], outputPath: string): Pro
     throw new Error("Cannot stitch video because no input clips were provided");
   }
 
-  const command = ffmpeg();
-
-  for (const inputPath of inputPaths) {
-    command.input(inputPath);
+  if (inputPaths.length === 1) {
+    await fs.copyFile(inputPaths[0], outputPath);
+    return;
   }
 
-  const videoInputs = inputPaths.map((_, index) => `[${index}:v]`).join("");
+  const command = ffmpeg();
 
   await runCommand(
-    command
+    inputPaths.reduce((current, inputPath) => current.input(inputPath), command)
       .complexFilter([
         {
           filter: "concat",
@@ -99,4 +111,8 @@ export async function extractClipTail(
       .outputOptions(["-c:v libx264", "-pix_fmt yuv420p", "-movflags +faststart"])
       .save(outputPath)
   );
+}
+
+export async function validateVideoFile(inputPath: string): Promise<void> {
+  await probeCommand(inputPath);
 }

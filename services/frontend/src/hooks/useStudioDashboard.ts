@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import {
   cancelGenerationShot,
   createProject,
@@ -41,6 +41,7 @@ import {
   getProjectStats,
   isKlingCameraControlType,
   isKlingMode,
+  modelSupportsCameraControls,
   normalizeShotPlanDurations,
   normalizeShotSequence,
   parseOptionalNumber
@@ -48,10 +49,13 @@ import {
 
 function mapProjectToPlanningSettings(project: Project): ProjectPlanningSettings {
   return {
+    prompt: project.prompt,
     targetShotCount: project.target_shot_count ?? 1,
     defaultBeatDuration: project.default_beat_duration ?? DEFAULT_BEAT_DURATION,
     aspectRatio: (project.aspect_ratio as "16:9" | "9:16" | "1:1" | null) ?? "16:9",
     styleHint: project.style_hint ?? "",
+    negativePrompt: project.negative_prompt ?? "",
+    cameraNotes: project.camera_notes ?? "",
     narrativeMode:
       (project.narrative_mode as
         | "3-beat-story"
@@ -76,22 +80,221 @@ function mapProjectToPlanningSettings(project: Project): ProjectPlanningSettings
   };
 }
 
+function buildKlingCameraControlPayload(args: {
+  model: string | null | undefined;
+  mode: "std" | "pro" | null | undefined;
+  durationSeconds: number;
+  type: string | null | undefined;
+  horizontal?: number | null;
+  vertical?: number | null;
+  pan?: number | null;
+  tilt?: number | null;
+  roll?: number | null;
+  zoom?: number | null;
+}) {
+  const { model, mode, durationSeconds, type } = args;
+  const supportedTypes = new Set(["simple", "down_back", "forward_up", "right_turn_forward", "left_turn_forward"]);
+
+  if (!type || !supportedTypes.has(type)) {
+    return undefined;
+  }
+
+  if (!modelSupportsCameraControls(model) || mode === "pro" || durationSeconds !== 5) {
+    return undefined;
+  }
+
+  if (type !== "simple") {
+    return { type };
+  }
+
+  const strongestEntry = (
+    [
+      ["horizontal", args.horizontal],
+      ["vertical", args.vertical],
+      ["pan", args.pan],
+      ["tilt", args.tilt],
+      ["roll", args.roll],
+      ["zoom", args.zoom]
+    ] as const
+  )
+    .filter(([, value]) => typeof value === "number" && Number.isFinite(value) && value !== 0)
+    .sort(([, left], [, right]) => Math.abs((right as number) ?? 0) - Math.abs((left as number) ?? 0))[0];
+
+  if (!strongestEntry) {
+    return undefined;
+  }
+
+  const [axis, value] = strongestEntry;
+  return {
+    type: "simple",
+    config: {
+      [axis]: value
+    }
+  };
+}
+
+function buildGenerationConsolePreview(args: {
+  action: "generate" | "retry-job" | "retry-shot";
+  project: Project | null;
+  selectedProjectId: string | null;
+  savedShotPlan: ProjectShotPlanItem[];
+  projectStatus?: ProjectGenerationStatus;
+  jobDiagnostics?: GenerationJobStatus;
+  shotNumber?: number;
+  defaultModel: string;
+}) {
+  const {
+    action,
+    project,
+    selectedProjectId,
+    savedShotPlan,
+    projectStatus,
+    jobDiagnostics,
+    shotNumber,
+    defaultModel
+  } = args;
+
+  const manualPlan =
+    project && selectedProjectId === project.id && savedShotPlan.length > 0
+      ? savedShotPlan.map((shot) => ({
+          shotNumber: shot.shotNumber,
+          beatLabel: shot.beatLabel ?? "",
+          description: shot.description,
+          durationSeconds: shot.durationSeconds,
+          generationMode: shot.generationMode ?? "generate",
+          sourceShotNumber: shot.sourceShotNumber ?? null,
+          extendPrompt: shot.extendPrompt ?? "",
+          negativePrompt: shot.negativePrompt ?? "",
+          cameraNotes: shot.cameraNotes ?? "",
+          klingMode: shot.klingMode ?? null,
+          klingCfgScale: shot.klingCfgScale ?? null,
+          klingCameraControlType: shot.klingCameraControlType ?? null,
+          klingCameraHorizontal: shot.klingCameraHorizontal ?? null,
+          klingCameraVertical: shot.klingCameraVertical ?? null,
+          klingCameraPan: shot.klingCameraPan ?? null,
+          klingCameraTilt: shot.klingCameraTilt ?? null,
+          klingCameraRoll: shot.klingCameraRoll ?? null,
+          klingCameraZoom: shot.klingCameraZoom ?? null
+        }))
+      : null;
+
+  const projectRecord = project ?? projectStatus?.project ?? null;
+  const normalizedManualPlan = manualPlan ? normalizeShotSequence(manualPlan) : null;
+  const fallbackPlan =
+    !normalizedManualPlan && projectRecord
+      ? createDefaultShotPlan(projectRecord.default_beat_duration ?? DEFAULT_BEAT_DURATION, projectRecord.target_shot_count ?? 1, {
+          negativePrompt: projectRecord.negative_prompt ?? "",
+          cameraNotes: projectRecord.camera_notes ?? ""
+        })
+      : null;
+
+  const latestShots =
+    jobDiagnostics?.shots.map((shot) => ({
+      shotNumber: shot.shot_number,
+      description: shot.description,
+      durationSeconds: shot.duration_seconds,
+      generationMode: (shot.generation_mode as "generate" | "extend-previous" | null) ?? "generate",
+      sourceShotNumber: shot.source_shot_number ?? null,
+      extendPrompt: shot.extend_prompt ?? "",
+      negativePrompt: shot.negative_prompt ?? "",
+      cameraNotes: shot.camera_notes ?? "",
+      klingMode: isKlingMode(shot.kling_mode) ? shot.kling_mode : null,
+      klingCfgScale: shot.kling_cfg_scale ?? null,
+      klingCameraControlType: isKlingCameraControlType(shot.kling_camera_control_type) ? shot.kling_camera_control_type : null,
+      klingCameraHorizontal: shot.kling_camera_horizontal ?? null,
+      klingCameraVertical: shot.kling_camera_vertical ?? null,
+      klingCameraPan: shot.kling_camera_pan ?? null,
+      klingCameraTilt: shot.kling_camera_tilt ?? null,
+      klingCameraRoll: shot.kling_camera_roll ?? null,
+      klingCameraZoom: shot.kling_camera_zoom ?? null
+    })) ?? [];
+
+  const planShots =
+    action === "generate"
+      ? normalizedManualPlan ?? fallbackPlan ?? []
+      : latestShots.filter((shot) => (action === "retry-shot" ? shot.shotNumber >= (shotNumber ?? 1) : true));
+
+  const effectiveModel = projectRecord?.kling_model ?? defaultModel;
+  const effectiveAspectRatio = projectRecord?.aspect_ratio ?? "16:9";
+  const effectiveProjectMode = isKlingMode(projectRecord?.kling_mode) ? projectRecord?.kling_mode : null;
+
+  return planShots.map((shot) => {
+    if (shot.generationMode === "extend-previous") {
+      return {
+        endpoint: "POST /v1/videos/video-extend",
+        shotNumber: shot.shotNumber,
+        payload: {
+          video_id: `source-video-from-shot-${shot.sourceShotNumber ?? shot.shotNumber - 1}`,
+          prompt: shot.extendPrompt ?? ""
+        }
+      };
+    }
+
+    const effectiveMode = shot.klingMode ?? effectiveProjectMode;
+    const cameraControl = buildKlingCameraControlPayload({
+      model: effectiveModel,
+      mode: effectiveMode,
+      durationSeconds: shot.durationSeconds,
+      type: shot.klingCameraControlType ?? (isKlingCameraControlType(projectRecord?.kling_camera_control_type) ? projectRecord?.kling_camera_control_type : null),
+      horizontal: shot.klingCameraHorizontal ?? projectRecord?.kling_camera_horizontal ?? null,
+      vertical: shot.klingCameraVertical ?? projectRecord?.kling_camera_vertical ?? null,
+      pan: shot.klingCameraPan ?? projectRecord?.kling_camera_pan ?? null,
+      tilt: shot.klingCameraTilt ?? projectRecord?.kling_camera_tilt ?? null,
+      roll: shot.klingCameraRoll ?? projectRecord?.kling_camera_roll ?? null,
+      zoom: shot.klingCameraZoom ?? projectRecord?.kling_camera_zoom ?? null
+    });
+
+    return {
+      endpoint: "POST /v1/videos/text2video",
+      shotNumber: shot.shotNumber,
+      payload: {
+        model: effectiveModel,
+        prompt: shot.description,
+        duration: shot.durationSeconds,
+        aspect_ratio: effectiveAspectRatio,
+        ...(shot.negativePrompt || projectRecord?.negative_prompt
+          ? { negative_prompt: shot.negativePrompt || projectRecord?.negative_prompt || "" }
+          : {}),
+        ...(effectiveMode ? { mode: effectiveMode } : {}),
+        ...(typeof (shot.klingCfgScale ?? projectRecord?.kling_cfg_scale) === "number"
+          ? { cfg_scale: shot.klingCfgScale ?? projectRecord?.kling_cfg_scale }
+          : {}),
+        ...(cameraControl ? { camera_control: cameraControl } : {})
+      }
+    };
+  });
+}
+
+function logGenerationConsolePreview(preview: ReturnType<typeof buildGenerationConsolePreview>) {
+  console.groupCollapsed("[kling][browser] payload preview");
+  console.log(preview);
+  console.groupEnd();
+}
+
 export function useStudioDashboard() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectStatuses, setProjectStatuses] = useState<Record<string, ProjectGenerationStatus>>({});
   const [jobDiagnostics, setJobDiagnostics] = useState<Record<string, GenerationJobStatus>>({});
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
-  const [editableShotPlan, setEditableShotPlan] = useState<ProjectShotPlanItem[]>(createDefaultShotPlan());
+  const [editableShotPlan, setEditableShotPlan] = useState<ProjectShotPlanItem[]>(
+    createDefaultShotPlan(DEFAULT_BEAT_DURATION, 1, {
+      negativePrompt: "",
+      cameraNotes: ""
+    })
+  );
   const [savedShotPlan, setSavedShotPlan] = useState<ProjectShotPlanItem[]>([]);
   const [autoShotPlanPreview, setAutoShotPlanPreview] = useState<ProjectShotPlanItem[]>([]);
   const [videoProviderConfig, setVideoProviderConfig] = useState<VideoProviderConfig | null>(null);
   const [formState, setFormState] = useState<ProjectFormState>(initialFormState);
   const [planningSettings, setPlanningSettings] = useState<ProjectPlanningSettings>({
+    prompt: "",
     targetShotCount: 1,
     defaultBeatDuration: DEFAULT_BEAT_DURATION,
     aspectRatio: "16:9",
     styleHint: "",
+    negativePrompt: "",
+    cameraNotes: "",
     narrativeMode: "3-beat-story",
     autoBeatDescriptions: true,
     klingModel: initialFormState.klingModel,
@@ -116,6 +319,7 @@ export function useStudioDashboard() {
   const [pendingGenerateProjectId, setPendingGenerateProjectId] = useState<string | null>(null);
   const [draggedShotIndex, setDraggedShotIndex] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const lastSyncedPlanningProjectRef = useRef<string | null>(null);
 
   const supportedDurations = videoProviderConfig?.durations ?? [];
   const defaultModel = videoProviderConfig?.defaultModel ?? initialFormState.klingModel;
@@ -277,7 +481,19 @@ export function useStudioDashboard() {
     if (!options?.preserveEditor) {
       setEditableShotPlan(
         normalizeShotSequence(
-          normalizeShotPlanDurations(shots.length > 0 ? shots : createDefaultShotPlan(), supportedDurations)
+          normalizeShotPlanDurations(
+            shots.length > 0
+              ? shots
+              : createDefaultShotPlan(
+                  projects.find((project) => project.id === projectId)?.default_beat_duration ?? DEFAULT_BEAT_DURATION,
+                  projects.find((project) => project.id === projectId)?.target_shot_count ?? 1,
+                  {
+                    negativePrompt: projects.find((project) => project.id === projectId)?.negative_prompt ?? "",
+                    cameraNotes: projects.find((project) => project.id === projectId)?.camera_notes ?? ""
+                  }
+                ),
+            supportedDurations
+          )
         )
       );
     }
@@ -353,15 +569,28 @@ export function useStudioDashboard() {
   useEffect(() => {
     if (!selectedProjectId) {
       setSavedShotPlan([]);
-      setEditableShotPlan(createDefaultShotPlan());
+      setEditableShotPlan(
+        createDefaultShotPlan(DEFAULT_BEAT_DURATION, 1, {
+          negativePrompt: "",
+          cameraNotes: ""
+        })
+      );
       setAutoShotPlanPreview([]);
       setSelectedJobId(null);
+      lastSyncedPlanningProjectRef.current = null;
       return;
     }
 
     const selectedProject = projects.find((project) => project.id === selectedProjectId);
     if (selectedProject) {
+      const syncKey = `${selectedProject.id}:${selectedProject.updated_at}`;
+
+      if (lastSyncedPlanningProjectRef.current === syncKey) {
+        return;
+      }
+
       setPlanningSettings(mapProjectToPlanningSettings(selectedProject));
+      lastSyncedPlanningProjectRef.current = syncKey;
     }
   }, [projects, selectedProjectId]);
 
@@ -470,10 +699,13 @@ export function useStudioDashboard() {
 
     try {
       await updateProjectSettings(selectedProjectId, {
+        prompt: planningSettings.prompt ?? "",
         targetShotCount: planningSettings.targetShotCount ?? 1,
         defaultBeatDuration: planningSettings.defaultBeatDuration ?? DEFAULT_BEAT_DURATION,
         aspectRatio: planningSettings.aspectRatio ?? "16:9",
         styleHint: planningSettings.styleHint ?? "",
+        negativePrompt: planningSettings.negativePrompt ?? "",
+        cameraNotes: planningSettings.cameraNotes ?? "",
         narrativeMode: planningSettings.narrativeMode ?? "3-beat-story",
         autoBeatDescriptions: planningSettings.autoBeatDescriptions ?? true,
         klingModel: planningSettings.klingModel ?? defaultModel,
@@ -502,6 +734,16 @@ export function useStudioDashboard() {
 
     try {
       const project = projects.find((currentProject) => currentProject.id === projectId) ?? null;
+      logGenerationConsolePreview(
+        buildGenerationConsolePreview({
+          action: "generate",
+          project,
+          selectedProjectId,
+          savedShotPlan,
+          projectStatus: projectStatuses[projectId],
+          defaultModel
+        })
+      );
       const providerModel = project?.kling_model ?? defaultModel;
       const response = await generateProject(projectId);
       const optimisticTimestamp = new Date().toISOString();
@@ -587,6 +829,19 @@ export function useStudioDashboard() {
     setError(null);
 
     try {
+      const diagnostics = jobDiagnostics[jobId];
+      const project = diagnostics ? projects.find((currentProject) => currentProject.id === diagnostics.job.project_id) ?? null : null;
+      logGenerationConsolePreview(
+        buildGenerationConsolePreview({
+          action: "retry-job",
+          project,
+          selectedProjectId,
+          savedShotPlan,
+          projectStatus: diagnostics ? projectStatuses[diagnostics.job.project_id] : undefined,
+          jobDiagnostics: diagnostics,
+          defaultModel
+        })
+      );
       const response = await retryGenerationJob(jobId);
       const optimisticTimestamp = new Date().toISOString();
       optimisticUpdateProjectJob(response.data.projectId, jobId, {
@@ -626,6 +881,20 @@ export function useStudioDashboard() {
     setError(null);
 
     try {
+      const diagnostics = jobDiagnostics[jobId];
+      const project = diagnostics ? projects.find((currentProject) => currentProject.id === diagnostics.job.project_id) ?? null : null;
+      logGenerationConsolePreview(
+        buildGenerationConsolePreview({
+          action: "retry-shot",
+          project,
+          selectedProjectId,
+          savedShotPlan,
+          projectStatus: diagnostics ? projectStatuses[diagnostics.job.project_id] : undefined,
+          jobDiagnostics: diagnostics,
+          shotNumber,
+          defaultModel
+        })
+      );
       const response = await retryGenerationShot(jobId, shotNumber);
       const optimisticTimestamp = new Date().toISOString();
       optimisticUpdateProjectJob(response.data.projectId, jobId, {

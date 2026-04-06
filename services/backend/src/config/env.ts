@@ -49,7 +49,8 @@ const envSchema = z.object({
     .string()
     .optional()
     .transform((value) => parseBooleanString(value, false)),
-  KLING_API_BASE_URL: z.string().url().default("https://api.klingai.com"),
+  // KLING_API_BASE_URL: z.string().url().default("https://api.klingai.com"),
+  KLING_API_BASE_URL: z.string().url().default("http://nowhere"),
   KLING_API_KEY: z.string().optional(),
   KLING_ACCESS_KEY: z.string().optional(),
   KLING_SECRET_KEY: z.string().optional(),
@@ -61,7 +62,7 @@ const envSchema = z.object({
     ),
   KLING_DURATION_SECONDS: z.coerce.number().default(5),
   KLING_ASPECT_RATIO: z.string().default("16:9"),
-  KLING_SUPPORTED_DURATIONS: z.string().default("5,10,15"),
+  KLING_SUPPORTED_DURATIONS: z.string().default("5,10"),
   KLING_SUPPORTED_ASPECT_RATIOS: z.string().default("16:9,9:16,1:1"),
   KLING_MODE: z.string().optional(),
   KLING_NEGATIVE_PROMPT: z.string().optional(),
@@ -74,7 +75,7 @@ const parsedEnv = envSchema.parse(process.env);
 
 export const env = {
   ...parsedEnv,
-  KLING_SUPPORTED_DURATION_VALUES: parseCsvValues(parsedEnv.KLING_SUPPORTED_DURATIONS, ["5", "10", "15"])
+  KLING_SUPPORTED_DURATION_VALUES: parseCsvValues(parsedEnv.KLING_SUPPORTED_DURATIONS, ["5", "10"])
     .map((value) => Number(value))
     .filter((value) => Number.isFinite(value)),
   KLING_SUPPORTED_MODEL_VALUES: parseCsvValues(parsedEnv.KLING_SUPPORTED_MODELS, [

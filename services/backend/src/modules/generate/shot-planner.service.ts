@@ -12,10 +12,14 @@ export interface ShotPlanResult {
 
 function buildPlannerPrompt(prompt: string, settings?: ProjectPlanningSettings): string {
   const targetShotCount = Math.min(Math.max(settings?.targetShotCount ?? 1, 1), 12);
-  const defaultStoryBeats = ["Intro", "Continuation", "Climax", "Resolution", "Outro"].slice(
-    0,
-    targetShotCount
-  );
+  const planningLabel =
+    targetShotCount <= 1 ? "single clip" : targetShotCount === 2 ? "short sequence" : "multi-shot story";
+  const suggestedBeats =
+    targetShotCount <= 1
+      ? ["Clip"]
+      : targetShotCount === 2
+        ? ["Opening", "Continuation"]
+        : ["Intro", "Continuation", "Climax", "Resolution", "Outro"].slice(0, targetShotCount);
   const narrativeMode = settings?.narrativeMode ? `Narrative mode: ${settings.narrativeMode}.` : null;
   const beatDescriptionInstruction =
     settings?.autoBeatDescriptions === false
@@ -23,7 +27,7 @@ function buildPlannerPrompt(prompt: string, settings?: ProjectPlanningSettings):
       : "Generate beat-aware shot descriptions that reflect the story progression.";
 
   if (!settings) {
-    return `${prompt}\n\nPlanning guidance:\nSuggested story beats: ${defaultStoryBeats.join(", ")}.\n${beatDescriptionInstruction}`;
+    return `${prompt}\n\nPlanning guidance:\nProject shape: ${planningLabel}.\nSuggested beats: ${suggestedBeats.join(", ")}.\n${beatDescriptionInstruction}`;
   }
 
   const instructions = [
@@ -31,12 +35,23 @@ function buildPlannerPrompt(prompt: string, settings?: ProjectPlanningSettings):
     settings.defaultBeatDuration ? `Default beat duration: ${settings.defaultBeatDuration} seconds.` : null,
     settings.aspectRatio ? `Aspect ratio: ${settings.aspectRatio}.` : null,
     settings.styleHint ? `Style direction: ${settings.styleHint}.` : null,
-    narrativeMode,
-    `Suggested story beats: ${defaultStoryBeats.join(", ")}.`,
+    settings.negativePrompt ? `Default negative prompt: ${settings.negativePrompt}.` : null,
+    settings.cameraNotes ? `Default camera notes: ${settings.cameraNotes}.` : null,
+    targetShotCount > 2 ? narrativeMode : null,
+    `Project shape: ${planningLabel}.`,
+    `Suggested beats: ${suggestedBeats.join(", ")}.`,
     beatDescriptionInstruction
   ].filter(Boolean);
 
   return `${prompt}\n\nPlanning guidance:\n${instructions.join("\n")}`;
+}
+
+function applyShotDefaults(shots: ShotPlanItem[], settings?: ProjectPlanningSettings): ShotPlanItem[] {
+  return shots.map((shot) => ({
+    ...shot,
+    negativePrompt: shot.negativePrompt ?? settings?.negativePrompt ?? null,
+    cameraNotes: shot.cameraNotes ?? settings?.cameraNotes ?? null
+  }));
 }
 
 export async function planShots(
@@ -69,12 +84,12 @@ export async function planShots(
     case "mock":
       return {
         provider: "mock",
-        shots: await buildMockShotPlan(buildPlannerPrompt(prompt, settings), settings)
+        shots: applyShotDefaults(await buildMockShotPlan(buildPlannerPrompt(prompt, settings), settings), settings)
       };
     case "python-service":
       return {
         provider: "python-service",
-        shots: await buildPythonServiceShotPlan(buildPlannerPrompt(prompt, settings), settings)
+        shots: applyShotDefaults(await buildPythonServiceShotPlan(buildPlannerPrompt(prompt, settings), settings), settings)
       };
     default:
       throw new HttpError(500, "Unsupported shot planner provider");

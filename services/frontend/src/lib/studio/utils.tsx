@@ -97,6 +97,64 @@ export function formatProvider(value: string) {
   return value.replace(/-/g, " ");
 }
 
+export interface ProviderEndpointContractField {
+  name: string;
+  required?: boolean;
+  type: string;
+  notes?: string;
+}
+
+export interface ProviderEndpointContract {
+  endpointKey: string;
+  label: string;
+  method: string;
+  url: string;
+  notes?: string;
+  fields: ProviderEndpointContractField[];
+}
+
+export function getProviderEndpointContract(shot: GenerationShot): ProviderEndpointContract | null {
+  if (shot.provider !== "kling") {
+    return null;
+  }
+
+  if (shot.generation_mode === "extend-previous") {
+    return {
+      endpointKey: "kling-video-extend",
+      label: "Kling video-extend",
+      method: "POST",
+      url: "https://api.klingai.com/v1/videos/video-extend",
+      notes: "Used for continuation clips. The follow-up request is built from the prior provider video ID plus an extend prompt.",
+      fields: [
+        { name: "video_id", required: true, type: "string", notes: "Provider video ID from the source shot." },
+        { name: "prompt", required: true, type: "string", notes: "Continuation instruction for the next visual beat." }
+      ]
+    };
+  }
+
+  return {
+    endpointKey: "kling-text2video",
+    label: "Kling text2video",
+    method: "POST",
+    url: "https://api.klingai.com/v1/videos/text2video",
+    notes: "Used for fresh generated clips. Actual accepted values are based on live-verified support in our app.",
+    fields: [
+      { name: "model", required: true, type: "string", notes: "Current project or shot-level Kling model ID." },
+      { name: "prompt", required: true, type: "string", notes: "Primary creative prompt sent to Kling." },
+      { name: "duration", type: "number", notes: "Live-verified safe values in our app are currently 5 or 10." },
+      { name: "aspect_ratio", type: "\"16:9\" | \"9:16\" | \"1:1\"" },
+      { name: "negative_prompt", type: "string" },
+      { name: "mode", type: "\"std\" | \"pro\"" },
+      { name: "cfg_scale", type: "number", notes: "Expected range is 0.0 to 1.0." },
+      {
+        name: "camera_control",
+        type: "object",
+        notes: "Optional. Compatible combinations are narrower than the generic schema, so the UI only surfaces verified-safe cases."
+      }
+    ]
+  };
+}
+
 export function formatTime(value: string) {
   return new Intl.DateTimeFormat(undefined, {
     dateStyle: "medium",
@@ -115,6 +173,10 @@ export function getShotProgress(shots: GenerationShot[]) {
 
 export function getShotPlanSummary(shots: ProjectShotPlanItem[]) {
   const totalDuration = shots.reduce((sum, shot) => sum + shot.durationSeconds, 0);
+  if (shots.length === 1) {
+    return `1 shot · ${totalDuration}s single clip`;
+  }
+
   return `${shots.length} shots · ${totalDuration}s total`;
 }
 

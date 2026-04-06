@@ -3,7 +3,12 @@ import type { ProjectPlanningSettings, ShotPlanItem } from "../generate.types.js
 export async function buildMockShotPlan(prompt: string, settings?: ProjectPlanningSettings): Promise<ShotPlanItem[]> {
   const cleanedPrompt = prompt.trim() || "A cinematic scene";
   const requestedShotCount = Math.min(Math.max(settings?.targetShotCount ?? 1, 1), 12);
-  const phases = ["Intro", "Continuation", "Climax", "Resolution", "Outro"];
+  const phases =
+    requestedShotCount <= 1
+      ? ["Clip"]
+      : requestedShotCount === 2
+        ? ["Opening", "Continuation"]
+        : ["Intro", "Continuation", "Climax", "Resolution", "Outro"];
 
   return Array.from({ length: requestedShotCount }, (_, index) => ({
     shotNumber: index + 1,
