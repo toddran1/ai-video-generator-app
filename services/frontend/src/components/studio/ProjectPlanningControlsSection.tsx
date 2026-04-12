@@ -60,25 +60,23 @@ export function ProjectPlanningControlsSection({
         </button>
       </div>
 
-      <div className="project-settings-grid">
-        <label className="project-settings-stack">
-          <span className="label-with-help">
-            Prompt
-            <HelpTooltip content="Update the main project prompt here. For a single clip, this is the primary creative input." />
-          </span>
-          <textarea
-            onChange={(event) =>
-              setPlanningSettings((current) => ({
-                ...current,
-                prompt: event.target.value
-              }))
-            }
-            placeholder="Describe the clip or sequence naturally..."
-            rows={5}
-            value={planningSettings.prompt ?? ""}
-          />
-        </label>
-      </div>
+      <label className="project-settings-stack project-settings-full-width">
+        <span className="label-with-help">
+          Prompt
+          <HelpTooltip content="Update the main project prompt here. For a single clip, this is the primary creative input." />
+        </span>
+        <textarea
+          onChange={(event) =>
+            setPlanningSettings((current) => ({
+              ...current,
+              prompt: event.target.value
+            }))
+          }
+          placeholder="Describe the clip or sequence naturally..."
+          rows={5}
+          value={planningSettings.prompt ?? ""}
+        />
+      </label>
 
       <div className="project-settings-grid">
         <label>
@@ -104,6 +102,27 @@ export function ProjectPlanningControlsSection({
         </label>
 
         <label>
+          <span>Aspect Ratio</span>
+          <select
+            onChange={(event) =>
+              setPlanningSettings((current) => ({
+                ...current,
+                aspectRatio: event.target.value as "16:9" | "9:16" | "1:1"
+              }))
+            }
+            value={planningSettings.aspectRatio ?? "16:9"}
+          >
+            {supportedAspectRatios.map((aspectRatio) => (
+              <option key={aspectRatio} value={aspectRatio}>
+                {aspectRatio}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      <div className="project-settings-grid">
+        <label>
           <span className="label-with-help">
             Target Shot Count
             <HelpTooltip content="Use 1-2 for simple clips. Use 3 or more when you want planner story structure." />
@@ -122,9 +141,9 @@ export function ProjectPlanningControlsSection({
           />
         </label>
 
-          <label>
-            <span>Default Shot Duration</span>
-            {usesFixedDurationOptions ? (
+        <label>
+          <span>Default Shot Duration</span>
+          {usesFixedDurationOptions ? (
             <select
               onChange={(event) =>
                 setPlanningSettings((current) => ({
@@ -155,28 +174,9 @@ export function ProjectPlanningControlsSection({
             />
           )}
         </label>
-
-        <label>
-          <span>Aspect Ratio</span>
-          <select
-            onChange={(event) =>
-              setPlanningSettings((current) => ({
-                ...current,
-                aspectRatio: event.target.value as "16:9" | "9:16" | "1:1"
-              }))
-            }
-            value={planningSettings.aspectRatio ?? "16:9"}
-          >
-            {supportedAspectRatios.map((aspectRatio) => (
-              <option key={aspectRatio} value={aspectRatio}>
-                {aspectRatio}
-              </option>
-            ))}
-          </select>
-        </label>
       </div>
 
-      <label className="project-settings-stack">
+      <label className="project-settings-stack project-settings-full-width">
         <span>Style Hint</span>
         <input
           onChange={(event) =>
@@ -187,45 +187,43 @@ export function ProjectPlanningControlsSection({
         />
       </label>
 
-      <div className="project-settings-grid">
-        <label>
-          <span className="label-with-help">
-            Default Camera Notes
-            <HelpTooltip content="These notes seed every shot in the project unless you override them per shot later." />
-          </span>
-          <textarea
-            onChange={(event) =>
-              setPlanningSettings((current) => ({ ...current, cameraNotes: event.target.value }))
-            }
-            placeholder="handheld, dolly in, low angle..."
-            rows={2}
-            value={planningSettings.cameraNotes ?? ""}
-          />
-        </label>
+      <label className="project-settings-stack project-settings-full-width">
+        <span className="label-with-help">
+          Default Camera Notes
+          <HelpTooltip content="These notes seed every shot in the project unless you override them per shot later." />
+        </span>
+        <textarea
+          onChange={(event) =>
+            setPlanningSettings((current) => ({ ...current, cameraNotes: event.target.value }))
+          }
+          placeholder="handheld, dolly in, low angle..."
+          rows={2}
+          value={planningSettings.cameraNotes ?? ""}
+        />
+      </label>
 
-        <label>
-          <span className="label-with-help">
-            Default Negative Prompt
-            <HelpTooltip content="This negative prompt is applied across the project by default unless you override it per shot later." />
-          </span>
-          <textarea
-            onChange={(event) =>
-              setPlanningSettings((current) => ({ ...current, negativePrompt: event.target.value }))
-            }
-            placeholder="blurry, text, watermark..."
-            rows={2}
-            value={planningSettings.negativePrompt ?? ""}
-          />
-        </label>
-      </div>
+      <label className="project-settings-stack project-settings-full-width">
+        <span className="label-with-help">
+          Default Negative Prompt
+          <HelpTooltip content="This negative prompt is applied across the project by default unless you override it per shot later." />
+        </span>
+        <textarea
+          onChange={(event) =>
+            setPlanningSettings((current) => ({ ...current, negativePrompt: event.target.value }))
+          }
+          placeholder="blurry, text, watermark..."
+          rows={2}
+          value={planningSettings.negativePrompt ?? ""}
+        />
+      </label>
 
       {isNarrativeProject ? (
         <div className="project-settings-grid">
           <label>
-            <span className="label-with-help">
+          <span className="label-with-help">
               Narrative Mode
               <HelpTooltip content="Narrative planning is most useful for 3+ connected shots. For short clips, focus on the prompt, model, and duration." />
-            </span>
+          </span>
             <select
               onChange={(event) =>
                 setPlanningSettings((current) => ({
@@ -305,32 +303,7 @@ export function ProjectPlanningControlsSection({
                 </select>
               </label>
 
-              <label className="slider-label">
-                <span className="label-with-help">
-                  CFG Scale
-                  <HelpTooltip content={cfgScaleHelp} />
-                </span>
-                <div className="slider-control">
-                  <input
-                    onChange={(event) =>
-                      setPlanningSettings((current) => ({
-                        ...current,
-                        klingCfgScale: parseOptionalNumber(event.target.value)
-                      }))
-                    }
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.1"
-                    value={planningSettings.klingCfgScale ?? 0.5}
-                  />
-                  <strong>{(planningSettings.klingCfgScale ?? 0.5).toFixed(1)}</strong>
-                </div>
-              </label>
-            </div>
-
-            {!shouldHideCameraControls(planningSettings.klingModel ?? defaultModel, planningSettings.klingMode ?? null) ? (
-              <div className="project-settings-grid">
+              {!shouldHideCameraControls(planningSettings.klingModel ?? defaultModel, planningSettings.klingMode ?? null) ? (
                 <label>
                   <span className="label-with-help">
                     Camera Type
@@ -360,6 +333,36 @@ export function ProjectPlanningControlsSection({
                     ))}
                   </select>
                 </label>
+              ) : null}
+            </div>
+
+            <div className="project-settings-grid">
+              <label className="slider-label slider-label-full">
+                <span className="label-with-help">
+                  CFG Scale
+                  <HelpTooltip content={cfgScaleHelp} />
+                </span>
+                <div className="slider-control">
+                  <input
+                    onChange={(event) =>
+                      setPlanningSettings((current) => ({
+                        ...current,
+                        klingCfgScale: parseOptionalNumber(event.target.value)
+                      }))
+                    }
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.1"
+                    value={planningSettings.klingCfgScale ?? 0.5}
+                  />
+                  <strong>{(planningSettings.klingCfgScale ?? 0.5).toFixed(1)}</strong>
+                </div>
+              </label>
+            </div>
+
+            {!shouldHideCameraControls(planningSettings.klingModel ?? defaultModel, planningSettings.klingMode ?? null) ? (
+              <div className="project-settings-grid">
                 {planningSettings.klingCameraControlType === "simple"
                   ? ([
                       ["Horizontal", "klingCameraHorizontal"],

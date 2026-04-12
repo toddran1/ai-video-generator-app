@@ -2,6 +2,7 @@ import { Router } from "express";
 import { asyncHandler } from "../../lib/async-handler.js";
 import { generateVideoSchema } from "./generate.schemas.js";
 import {
+  cancelGenerationJob,
   cancelGenerationShot,
   enqueueGeneration,
   getProviderConfig,
@@ -34,6 +35,14 @@ generateRouter.get(
   asyncHandler(async (req, res) => {
     const result = await getProjectGenerationStatus(String(req.params.projectId));
     res.json({ data: result });
+  })
+);
+
+generateRouter.post(
+  "/jobs/:jobId/cancel",
+  asyncHandler(async (req, res) => {
+    const result = await cancelGenerationJob(String(req.params.jobId));
+    res.status(202).json({ data: result });
   })
 );
 

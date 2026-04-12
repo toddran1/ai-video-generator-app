@@ -53,7 +53,7 @@ export type CreateProjectInput = z.infer<typeof createProjectSchema>;
 export const projectShotPlanItemSchema = z.object({
   shotNumber: z.coerce.number().int().positive(),
   beatLabel: z.string().max(60).optional().nullable(),
-  description: z.string().min(1),
+  description: z.string(),
   durationSeconds: z.coerce.number().int().positive().max(30),
   generationMode: z.enum(["generate", "extend-previous"]).optional().nullable(),
   sourceShotNumber: z.coerce.number().int().positive().optional().nullable(),

@@ -59,6 +59,28 @@ export async function planShots(
   projectId?: string,
   settings?: ProjectPlanningSettings
 ): Promise<ShotPlanResult> {
+  const targetShotCount = Math.min(Math.max(settings?.targetShotCount ?? 1, 1), 12);
+
+  if (targetShotCount === 1) {
+    return {
+      provider: "single-clip",
+      shots: applyShotDefaults(
+        [
+          {
+            shotNumber: 1,
+            beatLabel: "Clip",
+            description: prompt,
+            durationSeconds: settings?.defaultBeatDuration ?? 5,
+            generationMode: "generate",
+            sourceShotNumber: null,
+            extendPrompt: ""
+          }
+        ],
+        settings
+      )
+    };
+  }
+
   if (projectId) {
     const savedShots = await listProjectShotPlans(projectId);
 

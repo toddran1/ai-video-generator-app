@@ -229,6 +229,15 @@ export async function listProjectShotPlans(projectId: string): Promise<ProjectSh
 
 export async function replaceProjectShotPlans(projectId: string, shots: ShotPlanItem[]): Promise<ProjectShotPlanRecord[]> {
   await pool.query("DELETE FROM project_shot_plans WHERE project_id = $1", [projectId]);
+  await pool.query(
+    `
+      UPDATE projects
+      SET target_shot_count = $2,
+          updated_at = NOW()
+      WHERE id = $1
+    `,
+    [projectId, shots.length]
+  );
 
   const inserted: ProjectShotPlanRecord[] = [];
 

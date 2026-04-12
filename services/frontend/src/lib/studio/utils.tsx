@@ -52,8 +52,8 @@ export function getShotCameraControlNotice(shot: ProjectShotPlanItem, projectMod
     return "Camera control is omitted when Kling mode is Pro.";
   }
 
-  if (shot.durationSeconds !== 5) {
-    return "Camera control is only sent on 5-second generate shots.";
+  if (shot.durationSeconds !== 5 && shot.durationSeconds !== 10) {
+    return "Camera control is currently only sent on 5-second or 10-second generate shots.";
   }
 
   return "Camera control is eligible for this shot.";

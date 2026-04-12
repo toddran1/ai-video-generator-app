@@ -5,11 +5,13 @@ import { generationQueue } from "../../queues/generation.queue.js";
 import { localAssetService } from "../assets/local-asset.service.js";
 import { getProjectById, resetProjectForRetry, updateProjectStatus } from "../projects/projects.repository.js";
 import {
+  cancelGenerationJobNow,
   createGenerationJob,
   getGenerationShot,
   getGenerationJobById,
   listGenerationJobsForProject,
   listGenerationShotsForJob,
+  markGenerationShotsCanceled,
   requestGenerationJobCancel,
   resetGenerationShotsForRetry,
   resetGenerationJobForRetry
@@ -92,6 +94,45 @@ export async function retryGenerationJob(jobId: string) {
   return {
     id: job.id,
     status: "queued",
+    projectId: job.project_id
+  };
+}
+
+export async function cancelGenerationJob(jobId: string) {
+  const job = await getGenerationJobById(jobId);
+
+  if (!job) {
+    throw new HttpError(404, "Generation job not found");
+  }
+
+  if (["completed", "failed", "canceled"].includes(job.status)) {
+    throw new HttpError(409, "Only queued or active jobs can be canceled");
+  }
+
+  const existingQueueJob = await generationQueue.getJob(job.id);
+
+  if (job.status === "queued") {
+    if (existingQueueJob) {
+      await existingQueueJob.remove();
+    }
+
+    await cancelGenerationJobNow(job.id);
+    await markGenerationShotsCanceled(job.id);
+    await updateProjectStatus({ id: job.project_id, status: "draft" });
+
+    return {
+      id: job.id,
+      status: "canceled",
+      projectId: job.project_id
+    };
+  }
+
+  await requestGenerationJobCancel(job.id);
+  await updateProjectStatus({ id: job.project_id, status: "canceling" });
+
+  return {
+    id: job.id,
+    status: "canceling",
     projectId: job.project_id
   };
 }

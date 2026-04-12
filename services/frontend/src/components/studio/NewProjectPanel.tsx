@@ -302,29 +302,7 @@ export function NewProjectPanel({
                   </select>
                 </label>
 
-                <label className="slider-label">
-                  <span className="label-with-help">
-                    CFG Scale
-                    <HelpTooltip content={cfgScaleHelp} />
-                  </span>
-                  <div className="slider-control">
-                    <input
-                      onChange={(event) =>
-                        setFormState((current) => ({ ...current, klingCfgScale: event.target.value }))
-                      }
-                      type="range"
-                      min="0"
-                      max="1"
-                      step="0.1"
-                      value={formState.klingCfgScale || "0.5"}
-                    />
-                    <strong>{formState.klingCfgScale || "0.5"}</strong>
-                  </div>
-                </label>
-              </div>
-
-              {!shouldHideCameraControls(formState.klingModel || defaultModel, formState.klingMode || null) ? (
-                <div className="project-settings-grid">
+                {!shouldHideCameraControls(formState.klingModel || defaultModel, formState.klingMode || null) ? (
                   <label>
                     <span className="label-with-help">
                       Camera Type
@@ -353,38 +331,62 @@ export function NewProjectPanel({
                       ))}
                     </select>
                   </label>
-                  {formState.klingCameraControlType === "simple"
-                    ? (
-                        [
-                          ["Horizontal", "klingCameraHorizontal"],
-                          ["Vertical", "klingCameraVertical"],
-                          ["Pan", "klingCameraPan"],
-                          ["Tilt", "klingCameraTilt"],
-                          ["Roll", "klingCameraRoll"],
-                          ["Zoom", "klingCameraZoom"]
-                        ] as const
-                      ).map(([label, field]) => (
-                        <label className="slider-label" key={field}>
-                          <span className="label-with-help">
-                            {label}
-                            <HelpTooltip content={cameraAxisHelp[label]} />
-                          </span>
-                          <div className="slider-control">
-                            <input
-                              onChange={(event) =>
-                                setFormState((current) => ({ ...current, [field]: event.target.value }))
-                              }
-                              type="range"
-                              min="-10"
-                              max="10"
-                              step="0.1"
-                              value={formState[field] || "0"}
-                            />
-                            <strong>{formState[field] || "0"}</strong>
-                          </div>
-                        </label>
-                      ))
-                    : null}
+                ) : null}
+              </div>
+
+              <label className="slider-label slider-label-full">
+                <span className="label-with-help">
+                  CFG Scale
+                  <HelpTooltip content={cfgScaleHelp} />
+                </span>
+                <div className="slider-control">
+                  <input
+                    onChange={(event) =>
+                      setFormState((current) => ({ ...current, klingCfgScale: event.target.value }))
+                    }
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.1"
+                    value={formState.klingCfgScale || "0.5"}
+                  />
+                  <strong>{formState.klingCfgScale || "0.5"}</strong>
+                </div>
+              </label>
+
+              {!shouldHideCameraControls(formState.klingModel || defaultModel, formState.klingMode || null) &&
+              formState.klingCameraControlType === "simple" ? (
+                <div className="project-settings-grid">
+                  {(
+                    [
+                      ["Horizontal", "klingCameraHorizontal"],
+                      ["Vertical", "klingCameraVertical"],
+                      ["Pan", "klingCameraPan"],
+                      ["Tilt", "klingCameraTilt"],
+                      ["Roll", "klingCameraRoll"],
+                      ["Zoom", "klingCameraZoom"]
+                    ] as const
+                  ).map(([label, field]) => (
+                    <label className="slider-label" key={field}>
+                      <span className="label-with-help">
+                        {label}
+                        <HelpTooltip content={cameraAxisHelp[label]} />
+                      </span>
+                      <div className="slider-control">
+                        <input
+                          onChange={(event) =>
+                            setFormState((current) => ({ ...current, [field]: event.target.value }))
+                          }
+                          type="range"
+                          min="-10"
+                          max="10"
+                          step="0.1"
+                          value={formState[field] || "0"}
+                        />
+                        <strong>{formState[field] || "0"}</strong>
+                      </div>
+                    </label>
+                  ))}
                 </div>
               ) : null}
             </div>

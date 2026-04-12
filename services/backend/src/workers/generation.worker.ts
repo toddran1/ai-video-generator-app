@@ -111,18 +111,17 @@ function buildSimpleKlingCameraConfig(
   entries: Array<[string, number | null | undefined]>,
   allowedAxes: Set<string>
 ): Record<string, number> | undefined {
-  const candidates = entries
-    .filter(([axis, value]) => allowedAxes.has(axis) && typeof value === "number" && Number.isFinite(value) && value !== 0)
-    .sort(([, left], [, right]) => Math.abs((right as number) ?? 0) - Math.abs((left as number) ?? 0));
+  const config = Object.fromEntries(
+    entries.filter(
+      ([axis, value]) => allowedAxes.has(axis) && typeof value === "number" && Number.isFinite(value) && value !== 0
+    )
+  );
 
-  const selected = candidates[0];
-
-  if (!selected) {
+  if (Object.keys(config).length === 0) {
     return undefined;
   }
 
-  const [axis, value] = selected;
-  return { [axis]: value as number };
+  return config as Record<string, number>;
 }
 
 function buildKlingCameraControl(project: Awaited<ReturnType<typeof getProjectById>>) {
@@ -215,7 +214,7 @@ function resolveCompatibleCameraControl(params: {
     return undefined;
   }
 
-  if (params.durationSeconds !== 5) {
+  if (params.durationSeconds !== 5 && params.durationSeconds !== 10) {
     return undefined;
   }
 
@@ -333,9 +332,12 @@ async function processGenerationJob(payload: GenerationJobPayload): Promise<void
     let stitchedSegmentStartSeconds: number | undefined;
     let stitchedSegmentDurationSeconds: number | undefined;
     try {
+      const isSingleClipProject = shots.length === 1;
+      const resolvedDescription =
+        !isSingleClipProject && shot.shotNumber === 1 && !shot.description.trim() ? project.prompt : shot.description;
       const providerPrompt = [
-        shot.beatLabel ? `Story beat: ${shot.beatLabel}` : null,
-        shot.description,
+        !isSingleClipProject && shot.beatLabel ? `Story beat: ${shot.beatLabel}` : null,
+        resolvedDescription,
         shot.cameraNotes ? `Camera notes: ${shot.cameraNotes}` : null
       ]
         .filter(Boolean)

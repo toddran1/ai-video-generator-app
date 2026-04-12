@@ -12,6 +12,7 @@ import { useStudioDashboard } from "./hooks/useStudioDashboard";
 export default function App() {
   const {
     activeProjectId,
+    activeCancelJobId,
     activeRetryJobId,
     activeShotAction,
     autoShotPlanPreview,
@@ -26,6 +27,7 @@ export default function App() {
     featuredShots,
     formState,
     handleCancelShot,
+    handleCancelJob,
     handleCreateProject,
     handleGenerate,
     handleRetryJob,
@@ -37,6 +39,7 @@ export default function App() {
     isSavingSettings,
     isSavingShotPlan,
     pendingGenerateProjectId,
+    pendingGeneratePreview,
     perShotEstimate,
     planningSettings,
     projectJobs,
@@ -51,6 +54,7 @@ export default function App() {
     setEditableShotPlan,
     setFormState,
     setPendingGenerateProjectId,
+    setPendingGeneratePreview,
     setPlanningSettings,
     setSelectedJobId,
     setSelectedProjectId,
@@ -114,6 +118,7 @@ export default function App() {
 
           <ProjectDetailPanel
             activeProjectId={activeProjectId}
+            activeCancelJobId={activeCancelJobId}
             activeRetryJobId={activeRetryJobId}
             activeShotAction={activeShotAction}
             availableModels={videoProviderConfig?.models ?? []}
@@ -128,6 +133,7 @@ export default function App() {
             featuredJob={featuredJob}
             isSavingSettings={isSavingSettings}
             isSavingShotPlan={isSavingShotPlan}
+            onCancelJob={(jobId) => void handleCancelJob(jobId)}
             onCancelShot={(jobId, shotNumber) => void handleCancelShot(jobId, shotNumber)}
             onGenerate={(projectId) => void handleGenerate(projectId)}
             onRetryJob={(jobId) => void handleRetryJob(jobId)}
@@ -154,12 +160,17 @@ export default function App() {
       </main>
 
       <GenerateConfirmModal
-        estimatedCredits={getEstimatedCredits(savedShotPlan, perShotEstimate)}
+        estimatedCredits={Math.max(pendingGeneratePreview.length, 1) * perShotEstimate}
         isOpen={Boolean(pendingGenerateProjectId)}
-        onCancel={() => setPendingGenerateProjectId(null)}
+        preview={pendingGeneratePreview}
+        onCancel={() => {
+          setPendingGenerateProjectId(null);
+          setPendingGeneratePreview([]);
+        }}
         onConfirm={() => {
           const projectId = pendingGenerateProjectId;
           setPendingGenerateProjectId(null);
+          setPendingGeneratePreview([]);
           if (projectId) {
             void startGeneration(projectId);
           }

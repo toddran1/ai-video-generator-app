@@ -19,6 +19,7 @@ import type { DetailTab } from "../../lib/studio/config";
 
 export function ProjectDetailPanel({
   activeProjectId,
+  activeCancelJobId,
   activeRetryJobId,
   activeShotAction,
   availableModels,
@@ -34,6 +35,7 @@ export function ProjectDetailPanel({
   isSavingSettings,
   isSavingShotPlan,
   onCancelShot,
+  onCancelJob,
   onGenerate,
   onRetryJob,
   onRetryShot,
@@ -56,6 +58,7 @@ export function ProjectDetailPanel({
   usingManualShotPlan
 }: {
   activeProjectId: string | null;
+  activeCancelJobId: string | null;
   activeRetryJobId: string | null;
   activeShotAction: string | null;
   availableModels: Array<{ id: string; label: string; supportsCameraControl: boolean; estimatedUnitsPerShot: number }>;
@@ -71,6 +74,7 @@ export function ProjectDetailPanel({
   isSavingSettings: boolean;
   isSavingShotPlan: boolean;
   onCancelShot: (jobId: string, shotNumber: number) => void;
+  onCancelJob: (jobId: string) => void;
   onGenerate: (projectId: string) => void;
   onRetryJob: (jobId: string) => void;
   onRetryShot: (jobId: string, shotNumber: number) => void;
@@ -160,6 +164,7 @@ export function ProjectDetailPanel({
                 savedShotPlan={savedShotPlan}
                 setDraggedShotIndex={setDraggedShotIndex}
                 setEditableShotPlan={setEditableShotPlan}
+                setPlanningSettings={setPlanningSettings}
                 supportedDurations={supportedDurations}
                 usesFixedDurationOptions={usesFixedDurationOptions}
                 usingManualShotPlan={usingManualShotPlan}
@@ -174,9 +179,11 @@ export function ProjectDetailPanel({
               ) : null}
 
               <LatestJobSection
+                activeCancelJobId={activeCancelJobId}
                 activeProjectId={activeProjectId}
                 activeRetryJobId={activeRetryJobId}
                 featuredJob={featuredJob}
+                onCancelJob={onCancelJob}
                 onGenerate={onGenerate}
                 onRetryJob={onRetryJob}
                 projectId={selectedProject.id}

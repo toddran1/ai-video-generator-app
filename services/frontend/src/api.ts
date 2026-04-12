@@ -158,6 +158,12 @@ export async function retryGenerationJob(jobId: string) {
   });
 }
 
+export async function cancelGenerationJob(jobId: string) {
+  return request<ApiResponse<{ id: string; status: string; projectId: string }>>(`/generate/jobs/${jobId}/cancel`, {
+    method: "POST"
+  });
+}
+
 export async function retryGenerationShot(jobId: string, shotNumber: number) {
   return request<ApiResponse<{ id: string; status: string; projectId: string; shotNumber: number }>>(
     `/generate/jobs/${jobId}/shots/${shotNumber}/retry`,

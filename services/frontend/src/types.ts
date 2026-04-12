@@ -157,3 +157,10 @@ export interface GenerationJobStatus {
   job: GenerationJob;
   shots: GenerationShot[];
 }
+
+export interface GenerationRequestPreview {
+  endpoint: string;
+  shotNumber: number;
+  payload: Record<string, unknown>;
+  omitted?: Record<string, string>;
+}

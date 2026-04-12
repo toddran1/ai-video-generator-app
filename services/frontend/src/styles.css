@@ -249,6 +249,11 @@ a {
   gap: 0.45rem;
 }
 
+.project-settings-full-width {
+  width: 100%;
+  margin-top: 1rem;
+}
+
 .checkbox-label {
   display: flex !important;
   align-items: center;
@@ -597,6 +602,13 @@ a {
   margin-top: 1rem;
 }
 
+.single-clip-empty-state {
+  padding: 1rem;
+  border-radius: 18px;
+  border: 1px dashed rgba(214, 171, 93, 0.24);
+  background: rgba(255, 255, 255, 0.02);
+}
+
 .story-template-row {
   display: grid;
   gap: 0.75rem;
@@ -708,6 +720,18 @@ a {
   gap: 0.4rem;
 }
 
+.shot-plan-override-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  color: rgba(245, 239, 226, 0.74);
+  font-size: 0.85rem;
+}
+
+.shot-plan-override-toggle input {
+  accent-color: #d6ab5d;
+}
+
 .shot-plan-input,
 .shot-plan-duration input {
   width: 100%;
@@ -720,6 +744,11 @@ a {
 
 .shot-plan-input {
   resize: vertical;
+}
+
+.shot-plan-input:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .shot-plan-estimate-row {
@@ -766,6 +795,10 @@ a {
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.32);
 }
 
+.modal-card-wide {
+  width: min(860px, 100%);
+}
+
 .modal-card h3 {
   margin: 0.2rem 0 0.5rem;
 }
@@ -776,6 +809,52 @@ a {
   gap: 0.8rem;
   margin-top: 1rem;
   flex-wrap: wrap;
+}
+
+.modal-preview-list {
+  display: grid;
+  gap: 0.85rem;
+  margin-top: 1rem;
+  max-height: 24rem;
+  overflow: auto;
+  padding-right: 0.2rem;
+}
+
+.modal-preview-card {
+  display: grid;
+  gap: 0.55rem;
+  padding: 0.9rem 1rem;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.modal-preview-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.modal-preview-card pre,
+.modal-preview-note pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-x: auto;
+  padding: 0.85rem 0.95rem;
+  border-radius: 14px;
+  background: rgba(7, 10, 14, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  color: rgba(245, 239, 226, 0.88);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.modal-preview-note {
+  display: grid;
+  gap: 0.35rem;
 }
 
 .plan-compare-grid {

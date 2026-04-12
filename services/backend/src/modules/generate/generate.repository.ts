@@ -118,6 +118,19 @@ export async function requestGenerationJobCancel(id: string): Promise<void> {
   );
 }
 
+export async function cancelGenerationJobNow(id: string): Promise<void> {
+  await pool.query(
+    `
+      UPDATE generation_jobs
+      SET cancel_requested = FALSE,
+          status = 'canceled',
+          updated_at = NOW()
+      WHERE id = $1
+    `,
+    [id]
+  );
+}
+
 export async function getGenerationJobById(id: string): Promise<GenerationJobRecord | null> {
   const result = await pool.query<GenerationJobRecord>("SELECT * FROM generation_jobs WHERE id = $1", [id]);
   return result.rows[0] ?? null;
@@ -349,5 +362,18 @@ export async function resetGenerationShotsForRetry(jobId: string, fromShotNumber
       WHERE job_id = $1 AND shot_number >= $2
     `,
     [jobId, fromShotNumber]
+  );
+}
+
+export async function markGenerationShotsCanceled(jobId: string): Promise<void> {
+  await pool.query(
+    `
+      UPDATE generation_shots
+      SET status = 'canceled',
+          updated_at = NOW()
+      WHERE job_id = $1
+        AND status NOT IN ('completed', 'failed', 'canceled')
+    `,
+    [jobId]
   );
 }

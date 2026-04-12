@@ -4,15 +4,19 @@ import { formatProvider, formatStatus, formatTime, isTerminalStatus } from "../.
 export function LatestJobSection({
   featuredJob,
   activeRetryJobId,
+  activeCancelJobId,
   activeProjectId,
   onRetryJob,
+  onCancelJob,
   onGenerate,
   projectId
 }: {
   featuredJob: GenerationJob | null;
   activeRetryJobId: string | null;
+  activeCancelJobId: string | null;
   activeProjectId: string | null;
   onRetryJob: (jobId: string) => void;
+  onCancelJob: (jobId: string) => void;
   onGenerate: (projectId: string) => void;
   projectId: string;
 }) {
@@ -57,14 +61,24 @@ export function LatestJobSection({
           {featuredJob.status === "processing" || featuredJob.status === "queued" ? (
             <div className="detail-row">
               <span className="metric-label">Controls</span>
-              <button
-                className="ghost-button"
-                disabled={activeRetryJobId === featuredJob.id}
-                onClick={() => onRetryJob(featuredJob.id)}
-                type="button"
-              >
-                {activeRetryJobId === featuredJob.id ? "Retrying..." : "Retry / Resume Job"}
-              </button>
+              <div className="toggle-row">
+                <button
+                  className="ghost-button"
+                  disabled={activeRetryJobId === featuredJob.id || activeCancelJobId === featuredJob.id}
+                  onClick={() => onRetryJob(featuredJob.id)}
+                  type="button"
+                >
+                  {activeRetryJobId === featuredJob.id ? "Retrying..." : "Retry / Resume Job"}
+                </button>
+                <button
+                  className="ghost-button"
+                  disabled={activeCancelJobId === featuredJob.id || activeRetryJobId === featuredJob.id}
+                  onClick={() => onCancelJob(featuredJob.id)}
+                  type="button"
+                >
+                  {activeCancelJobId === featuredJob.id ? "Canceling..." : "Cancel Job"}
+                </button>
+              </div>
             </div>
           ) : null}
           {isTerminalStatus(featuredJob.status) ? (

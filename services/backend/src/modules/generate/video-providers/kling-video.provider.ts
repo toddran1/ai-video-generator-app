@@ -195,16 +195,16 @@ async function pollKlingTask(taskId: string, input: GenerateVideoClipInput): Pro
 
   while (Date.now() - startedAt < env.KLING_TIMEOUT_MS) {
     await ensureNotCanceled(input);
-    let response;
+    let response: { data: KlingEnvelope<KlingStatusData> } | undefined;
     try {
-      response = await axios.get<KlingEnvelope<KlingStatusData>>(
-        `${env.KLING_API_BASE_URL}/v1/videos/text2video/${taskId}`,
-        {
-          headers: {
-            Authorization: getKlingAuthHeader()
-          }
-        }
-      );
+      // response = await axios.get<KlingEnvelope<KlingStatusData>>(
+      //   `${env.KLING_API_BASE_URL}/v1/videos/text2video/${taskId}`,
+      //   {
+      //     headers: {
+      //       Authorization: getKlingAuthHeader()
+      //     }
+      //   }
+      // );
     } catch (error) {
       if (axios.isAxiosError(error)) {
         console.error(
@@ -223,6 +223,10 @@ async function pollKlingTask(taskId: string, input: GenerateVideoClipInput): Pro
     }
 
     transientFailureCount = 0;
+
+    if (!response) {
+      throw new HttpError(503, "Kling polling is currently disabled in the provider code");
+    }
 
     lastPayload = response.data;
 
@@ -324,18 +328,19 @@ export async function generateKlingVideoClip(
   };
   const requestPayload = stringifyPayload(requestBody);
 
-  let response;
+  let response: { data: KlingEnvelope<KlingSubmitData> } | undefined;
   try {
-    response = await axios.post<KlingEnvelope<KlingSubmitData>>(
-      textToVideoUrl,
-      requestBody,
-      {
-        headers: {
-          Authorization: getKlingAuthHeader(),
-          "Content-Type": "application/json"
-        }
-      }
-    );
+    console.log('body: ', requestBody);
+    // response = await axios.post<KlingEnvelope<KlingSubmitData>>(
+    //   textToVideoUrl,
+    //   requestBody,
+    //   {
+    //     headers: {
+    //       Authorization: getKlingAuthHeader(),
+    //       "Content-Type": "application/json"
+    //     }
+    //   }
+    // );
   } catch (error) {
     if (axios.isAxiosError(error)) {
       console.error(
@@ -343,6 +348,10 @@ export async function generateKlingVideoClip(
       );
     }
     throw error;
+  }
+
+  if (!response) {
+    throw new HttpError(503, "Kling submit is currently disabled in the provider code");
   }
 
   console.log(`[kling] submit request url=${textToVideoUrl} payload=${requestPayload}`);
@@ -432,7 +441,7 @@ export async function extendKlingVideoClip(
   };
   const requestPayload = stringifyPayload(requestBody);
 
-  let response;
+  let response: { data: KlingEnvelope<KlingSubmitData> } | undefined;
   try {
     response = await axios.post<KlingEnvelope<KlingSubmitData>>(
       extendUrl,
@@ -451,6 +460,10 @@ export async function extendKlingVideoClip(
       );
     }
     throw error;
+  }
+
+  if (!response) {
+    throw new HttpError(503, "Kling extend submit is currently disabled in the provider code");
   }
 
   console.log(`[kling] extend request url=${extendUrl} payload=${requestPayload}`);

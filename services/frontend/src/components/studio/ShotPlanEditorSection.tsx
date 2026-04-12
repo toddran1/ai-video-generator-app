@@ -21,6 +21,12 @@ import type { ProjectPlanningSettings, ProjectShotPlanItem } from "../../types";
 const cfgScaleHelp = "Adjusts how strongly Kling follows the prompt. Lower values allow more freedom; higher values push closer to the written prompt.";
 const cameraTypeHelp =
   "Choose a motion preset, or select Simple to manually tune camera movement axes like pan, tilt, roll, and zoom.";
+const cameraNotesOverrideHelp =
+  "Leave this on to inherit the project-level camera notes. Turn it off only when this shot needs different camera direction.";
+const negativePromptOverrideHelp =
+  "Leave this on to inherit the project-level negative prompt. Turn it off only when this shot needs different exclusions.";
+const shotDescriptionOverrideHelp =
+  "For the first shot in a multi-shot plan, leave this on to send the project prompt. Turn it off only when shot 1 needs its own custom prompt.";
 const cameraAxisHelp: Record<string, string> = {
   Horizontal: "Moves the camera left or right across the frame.",
   Vertical: "Moves the camera up or down through the scene.",
@@ -33,6 +39,7 @@ const cameraAxisHelp: Record<string, string> = {
 export function ShotPlanEditorSection({
   editableShotPlan,
   setEditableShotPlan,
+  setPlanningSettings,
   planningSettings,
   supportedDurations,
   usesFixedDurationOptions,
@@ -47,6 +54,7 @@ export function ShotPlanEditorSection({
 }: {
   editableShotPlan: ProjectShotPlanItem[];
   setEditableShotPlan: Dispatch<SetStateAction<ProjectShotPlanItem[]>>;
+  setPlanningSettings: Dispatch<SetStateAction<ProjectPlanningSettings>>;
   planningSettings: ProjectPlanningSettings;
   supportedDurations: number[];
   usesFixedDurationOptions: boolean;
@@ -62,10 +70,22 @@ export function ShotPlanEditorSection({
   const isSingleShotEditor = editableShotPlan.length <= 1;
   const showStoryTemplates = editableShotPlan.length > 1 && (planningSettings.targetShotCount ?? editableShotPlan.length) > 2;
   const editorEyebrow = isSingleShotEditor ? "Clip Settings" : "Shot Plan Editor";
-  const editorTitle = isSingleShotEditor ? "Fine-tune the clip for this project" : "Override automatic planning for this project";
+  const editorTitle = isSingleShotEditor ? "Add more clips when you want a sequence" : "Override automatic planning for this project";
   const editorCaption = isSingleShotEditor
-    ? "Adjust the prompt details for this clip, then add another shot when you want continuity controls."
+    ? "Project-level fields already define this single clip. Add another clip to unlock per-clip controls and continuity settings."
     : "Reorder shots, tune continuity controls, and save a manual plan before you spend credits.";
+
+  function syncShotCount(nextShots: ProjectShotPlanItem[]) {
+    setPlanningSettings((current) => ({
+      ...current,
+      targetShotCount: nextShots.length
+    }));
+  }
+
+  function applyShotPlan(nextShots: ProjectShotPlanItem[]) {
+    setEditableShotPlan(nextShots);
+    syncShotCount(nextShots);
+  }
 
   return (
     <div className="detail-section">
@@ -76,37 +96,39 @@ export function ShotPlanEditorSection({
           <p className="project-card-caption">{editorCaption}</p>
         </div>
         <div className="section-actions">
-          <button
-            className="ghost-button"
-            onClick={() =>
-              setEditableShotPlan(
-                normalizeShotSequence(
-                  normalizeShotPlanDurations(
-                    usingManualShotPlan
-                      ? savedShotPlan
-                      : createDefaultShotPlan(
-                          planningSettings.defaultBeatDuration ?? DEFAULT_BEAT_DURATION,
-                          planningSettings.targetShotCount ?? 1,
-                          {
-                            negativePrompt: planningSettings.negativePrompt ?? "",
-                            cameraNotes: planningSettings.cameraNotes ?? ""
-                          }
-                        ),
-                    supportedDurations
+          {!isSingleShotEditor ? (
+            <button
+              className="ghost-button"
+              onClick={() =>
+                applyShotPlan(
+                  normalizeShotSequence(
+                    normalizeShotPlanDurations(
+                      usingManualShotPlan
+                        ? savedShotPlan
+                        : createDefaultShotPlan(
+                            planningSettings.defaultBeatDuration ?? DEFAULT_BEAT_DURATION,
+                            planningSettings.targetShotCount ?? 1,
+                            {
+                              negativePrompt: planningSettings.negativePrompt ?? "",
+                              cameraNotes: planningSettings.cameraNotes ?? ""
+                            }
+                          ),
+                      supportedDurations
+                    )
                   )
                 )
-              )
-            }
-            type="button"
-          >
-            Reset Editor
-          </button>
+              }
+              type="button"
+            >
+              Reset Editor
+            </button>
+          ) : null}
           {!isSingleShotEditor ? (
             <button
               className="ghost-button"
               disabled={autoShotPlanPreview.length === 0}
               onClick={() =>
-                setEditableShotPlan(
+                applyShotPlan(
                   normalizeShotSequence(
                     normalizeShotPlanDurations(
                       normalizeShotSequence(
@@ -126,9 +148,11 @@ export function ShotPlanEditorSection({
               Copy Auto Plan Into Editor
             </button>
           ) : null}
-          <button className="primary-button" disabled={isSavingShotPlan} onClick={onSaveShotPlan} type="button">
-            {isSavingShotPlan ? "Saving..." : isSingleShotEditor ? "Save Clip Settings" : "Save Shot Plan"}
-          </button>
+          {!isSingleShotEditor ? (
+            <button className="primary-button" disabled={isSavingShotPlan} onClick={onSaveShotPlan} type="button">
+              {isSavingShotPlan ? "Saving..." : "Save Shot Plan"}
+            </button>
+          ) : null}
         </div>
       </div>
 
@@ -139,8 +163,8 @@ export function ShotPlanEditorSection({
             <button
               className="ghost-button"
               onClick={() =>
-                setEditableShotPlan((current) =>
-                  normalizeShotSequence(
+                setEditableShotPlan((current) => {
+                  const nextShots = normalizeShotSequence(
                     normalizeShotPlanDurations(
                       applyStoryTemplateWithOptions(
                         planningSettings.narrativeMode ?? "3-beat-story",
@@ -151,8 +175,10 @@ export function ShotPlanEditorSection({
                       ),
                       supportedDurations
                     )
-                  )
-                )
+                  );
+                  syncShotCount(nextShots);
+                  return nextShots;
+                })
               }
               type="button"
             >
@@ -163,26 +189,39 @@ export function ShotPlanEditorSection({
       ) : null}
 
       <div className="shot-plan-editor">
-        {editableShotPlan.map((shot, index) => (
-          <div
-            className={`shot-plan-editor-row ${draggedShotIndex === index ? "shot-plan-editor-row-dragging" : ""}`}
-            draggable
-            key={`shot-plan-${index}`}
-            onDragEnd={() => setDraggedShotIndex(null)}
-            onDragOver={(event) => event.preventDefault()}
-            onDragStart={() => setDraggedShotIndex(index)}
-            onDrop={(event) => {
-              event.preventDefault();
+        {isSingleShotEditor ? (
+          <div className="single-clip-empty-state">
+            <p className="project-card-caption">
+              This project is currently using one clip, so prompt, duration, camera notes, and negative prompt come from the
+              project settings above.
+            </p>
+          </div>
+        ) : (
+          editableShotPlan.map((shot, index) => {
+            const usesProjectDefaultDescription = index === 0 && !isSingleShotEditor && !shot.description;
+            const usesProjectDefaultCameraNotes = !shot.cameraNotes;
+            const usesProjectDefaultNegativePrompt = !shot.negativePrompt;
 
-              if (draggedShotIndex === null || draggedShotIndex === index) {
-                setDraggedShotIndex(null);
-                return;
-              }
+            return (
+              <div
+                className={`shot-plan-editor-row ${draggedShotIndex === index ? "shot-plan-editor-row-dragging" : ""}`}
+                draggable
+                key={`shot-plan-${index}`}
+                onDragEnd={() => setDraggedShotIndex(null)}
+                onDragOver={(event) => event.preventDefault()}
+                onDragStart={() => setDraggedShotIndex(index)}
+                onDrop={(event) => {
+                  event.preventDefault();
 
-              setEditableShotPlan((current) => reorderShots(current, draggedShotIndex, index));
-              setDraggedShotIndex(null);
-            }}
-          >
+                  if (draggedShotIndex === null || draggedShotIndex === index) {
+                    setDraggedShotIndex(null);
+                    return;
+                  }
+
+                  setEditableShotPlan((current) => reorderShots(current, draggedShotIndex, index));
+                  setDraggedShotIndex(null);
+                }}
+              >
             <div className="shot-plan-editor-head">
               <div className="shot-index-group">
                 {!isSingleShotEditor ? (
@@ -197,9 +236,11 @@ export function ShotPlanEditorSection({
                   className="ghost-button"
                   disabled={editableShotPlan.length <= 1}
                   onClick={() =>
-                    setEditableShotPlan((current) =>
-                      normalizeShotSequence(current.filter((_, currentIndex) => currentIndex !== index))
-                    )
+                    setEditableShotPlan((current) => {
+                      const nextShots = normalizeShotSequence(current.filter((_, currentIndex) => currentIndex !== index));
+                      syncShotCount(nextShots);
+                      return nextShots;
+                    })
                   }
                   type="button"
                 >
@@ -289,7 +330,7 @@ export function ShotPlanEditorSection({
 
             {!isSingleShotEditor ? (
               <label className="shot-plan-field">
-                <span className="metric-label">Beat Label</span>
+                <span className="metric-label">Shot Label</span>
                 <input
                   className="shot-plan-input"
                   onChange={(event) =>
@@ -306,9 +347,31 @@ export function ShotPlanEditorSection({
             ) : null}
 
             <label className="shot-plan-field">
-              <span className="metric-label">Shot Description</span>
+              <span className="metric-label label-with-help">
+                Shot Description
+                {index === 0 && !isSingleShotEditor ? <HelpTooltip content={shotDescriptionOverrideHelp} /> : null}
+              </span>
+              {index === 0 && !isSingleShotEditor ? (
+                <label className="shot-plan-override-toggle">
+                  <input
+                    checked={usesProjectDefaultDescription}
+                    onChange={(event) =>
+                      setEditableShotPlan((current) =>
+                        current.map((item, currentIndex) =>
+                          currentIndex === index
+                            ? { ...item, description: event.target.checked ? "" : item.description ?? "" }
+                            : item
+                        )
+                      )
+                    }
+                    type="checkbox"
+                  />
+                  <span>Use Project Default</span>
+                </label>
+              ) : null}
               <textarea
                 className="shot-plan-input"
+                disabled={usesProjectDefaultDescription}
                 onChange={(event) =>
                   setEditableShotPlan((current) =>
                     current.map((item, currentIndex) =>
@@ -316,16 +379,40 @@ export function ShotPlanEditorSection({
                     )
                   )
                 }
-                placeholder="Describe what should happen in this shot..."
+                placeholder={
+                  usesProjectDefaultDescription
+                    ? planningSettings.prompt || "Using project prompt for shot 1..."
+                    : "Describe what should happen in this shot..."
+                }
                 rows={3}
                 value={shot.description}
               />
             </label>
 
             <label className="shot-plan-field">
-              <span className="metric-label">Camera Notes</span>
+              <span className="metric-label label-with-help">
+                Camera Notes
+                <HelpTooltip content={cameraNotesOverrideHelp} />
+              </span>
+              <label className="shot-plan-override-toggle">
+                <input
+                  checked={usesProjectDefaultCameraNotes}
+                  onChange={(event) =>
+                    setEditableShotPlan((current) =>
+                      current.map((item, currentIndex) =>
+                        currentIndex === index
+                          ? { ...item, cameraNotes: event.target.checked ? "" : item.cameraNotes ?? "" }
+                          : item
+                      )
+                    )
+                  }
+                  type="checkbox"
+                />
+                <span>Use Project Default</span>
+              </label>
               <textarea
                 className="shot-plan-input"
+                disabled={usesProjectDefaultCameraNotes}
                 onChange={(event) =>
                   setEditableShotPlan((current) =>
                     current.map((item, currentIndex) =>
@@ -333,16 +420,40 @@ export function ShotPlanEditorSection({
                     )
                   )
                 }
-                placeholder="dolly in, handheld, low angle..."
+                placeholder={
+                  usesProjectDefaultCameraNotes
+                    ? planningSettings.cameraNotes || "Using project default camera notes..."
+                    : "dolly in, handheld, low angle..."
+                }
                 rows={2}
                 value={shot.cameraNotes ?? ""}
               />
             </label>
 
             <label className="shot-plan-field">
-              <span className="metric-label">Negative Prompt</span>
+              <span className="metric-label label-with-help">
+                Negative Prompt
+                <HelpTooltip content={negativePromptOverrideHelp} />
+              </span>
+              <label className="shot-plan-override-toggle">
+                <input
+                  checked={usesProjectDefaultNegativePrompt}
+                  onChange={(event) =>
+                    setEditableShotPlan((current) =>
+                      current.map((item, currentIndex) =>
+                        currentIndex === index
+                          ? { ...item, negativePrompt: event.target.checked ? "" : item.negativePrompt ?? "" }
+                          : item
+                      )
+                    )
+                  }
+                  type="checkbox"
+                />
+                <span>Use Project Default</span>
+              </label>
               <textarea
                 className="shot-plan-input"
+                disabled={usesProjectDefaultNegativePrompt}
                 onChange={(event) =>
                   setEditableShotPlan((current) =>
                     current.map((item, currentIndex) =>
@@ -350,7 +461,11 @@ export function ShotPlanEditorSection({
                     )
                   )
                 }
-                placeholder="blurry, text, watermark..."
+                placeholder={
+                  usesProjectDefaultNegativePrompt
+                    ? planningSettings.negativePrompt || "Using project default negative prompt..."
+                    : "blurry, text, watermark..."
+                }
                 rows={2}
                 value={shot.negativePrompt ?? ""}
               />
@@ -360,7 +475,7 @@ export function ShotPlanEditorSection({
               <div className="advanced-tab-panel">
                 <div className="advanced-panel-header">
                   <div>
-                    <p className="eyebrow">Shot Kling Overrides</p>
+                    <p className="eyebrow">Shot Overrides</p>
                     <p className="project-card-caption">Optional per-shot overrides for generate-only shots.</p>
                   </div>
                   <button
@@ -413,33 +528,7 @@ export function ShotPlanEditorSection({
                     </select>
                   </label>
 
-                  <label className="slider-label">
-                    <span className="label-with-help">
-                      CFG Scale
-                      <HelpTooltip content={cfgScaleHelp} />
-                    </span>
-                    <div className="slider-control">
-                      <input
-                        onChange={(event) =>
-                          setEditableShotPlan((current) =>
-                            current.map((item, currentIndex) =>
-                              currentIndex === index ? { ...item, klingCfgScale: parseOptionalNumber(event.target.value) } : item
-                            )
-                          )
-                        }
-                        type="range"
-                        min="0"
-                        max="1"
-                        step="0.1"
-                        value={shot.klingCfgScale ?? 0.5}
-                      />
-                      <strong>{(shot.klingCfgScale ?? 0.5).toFixed(1)}</strong>
-                    </div>
-                  </label>
-                </div>
-
-                {!shouldHideCameraControls(planningSettings.klingModel ?? null, shot.klingMode ?? null) ? (
-                  <div className="project-settings-grid">
+                  {!shouldHideCameraControls(planningSettings.klingModel ?? null, shot.klingMode ?? null) ? (
                     <label>
                       <span className="label-with-help">
                         Camera Type
@@ -477,42 +566,70 @@ export function ShotPlanEditorSection({
                         ))}
                       </select>
                     </label>
-                    {shot.klingCameraControlType === "simple"
-                      ? ([
-                          ["Horizontal", "klingCameraHorizontal"],
-                          ["Vertical", "klingCameraVertical"],
-                          ["Pan", "klingCameraPan"],
-                          ["Tilt", "klingCameraTilt"],
-                          ["Roll", "klingCameraRoll"],
-                          ["Zoom", "klingCameraZoom"]
-                        ] as const).map(([label, field]) => (
+                  ) : null}
+                </div>
+
+                <label className="slider-label slider-label-full">
+                  <span className="label-with-help">
+                    CFG Scale
+                    <HelpTooltip content={cfgScaleHelp} />
+                  </span>
+                  <div className="slider-control">
+                    <input
+                      onChange={(event) =>
+                        setEditableShotPlan((current) =>
+                          current.map((item, currentIndex) =>
+                            currentIndex === index ? { ...item, klingCfgScale: parseOptionalNumber(event.target.value) } : item
+                          )
+                        )
+                      }
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.1"
+                      value={shot.klingCfgScale ?? 0.5}
+                    />
+                    <strong>{(shot.klingCfgScale ?? 0.5).toFixed(1)}</strong>
+                  </div>
+                </label>
+
+                {!shouldHideCameraControls(planningSettings.klingModel ?? null, shot.klingMode ?? null) &&
+                shot.klingCameraControlType === "simple" ? (
+                  <div className="project-settings-grid">
+                    {([
+                      ["Horizontal", "klingCameraHorizontal"],
+                      ["Vertical", "klingCameraVertical"],
+                      ["Pan", "klingCameraPan"],
+                      ["Tilt", "klingCameraTilt"],
+                      ["Roll", "klingCameraRoll"],
+                      ["Zoom", "klingCameraZoom"]
+                    ] as const).map(([label, field]) => (
                       <label className="slider-label" key={field}>
                         <span className="label-with-help">
                           {label}
                           <HelpTooltip content={cameraAxisHelp[label]} />
                         </span>
                         <div className="slider-control">
-                              <input
-                                onChange={(event) =>
-                                  setEditableShotPlan((current) =>
-                                    current.map((item, currentIndex) =>
-                                      currentIndex === index
-                                        ? { ...item, [field]: parseOptionalNumber(event.target.value) }
-                                        : item
-                                    )
-                                  )
-                                }
-                                type="range"
-                                min="-10"
-                                max="10"
-                                step="0.1"
-                                value={(shot[field] as number | null) ?? 0}
-                              />
-                              <strong>{(((shot[field] as number | null) ?? 0)).toFixed(1)}</strong>
-                            </div>
-                          </label>
-                        ))
-                      : null}
+                          <input
+                            onChange={(event) =>
+                              setEditableShotPlan((current) =>
+                                current.map((item, currentIndex) =>
+                                  currentIndex === index
+                                    ? { ...item, [field]: parseOptionalNumber(event.target.value) }
+                                    : item
+                                )
+                              )
+                            }
+                            type="range"
+                            min="-10"
+                            max="10"
+                            step="0.1"
+                            value={(shot[field] as number | null) ?? 0}
+                          />
+                          <strong>{(((shot[field] as number | null) ?? 0)).toFixed(1)}</strong>
+                        </div>
+                      </label>
+                    ))}
                   </div>
                 ) : null}
               </div>
@@ -563,18 +680,20 @@ export function ShotPlanEditorSection({
               </span>
             </div>
           </div>
-        ))}
+            );
+          })
+        )}
 
         <button
           className="secondary-button"
           onClick={() =>
-            setEditableShotPlan((current) =>
-              normalizeShotSequence([
+            setEditableShotPlan((current) => {
+              const nextShots = normalizeShotSequence([
                 ...current,
                 {
                   shotNumber: current.length + 1,
                   beatLabel: "",
-                  description: `New shot ${current.length + 1}`,
+                  description: "",
                   durationSeconds: planningSettings.defaultBeatDuration ?? DEFAULT_BEAT_DURATION,
                   generationMode: current.length === 0 ? "generate" : "extend-previous",
                   sourceShotNumber: current.length === 0 ? null : current.length,
@@ -582,12 +701,14 @@ export function ShotPlanEditorSection({
                   negativePrompt: "",
                   cameraNotes: ""
                 }
-              ])
-            )
+              ]);
+              syncShotCount(nextShots);
+              return nextShots;
+            })
           }
           type="button"
         >
-          {isSingleShotEditor ? "Add Another Shot" : "Add Shot"}
+          {isSingleShotEditor ? "Add Clip" : "Add Shot"}
         </button>
       </div>
     </div>
